@@ -531,8 +531,8 @@ function startCloudRealtime() {
     .on('postgres_changes', { event:'*', schema:'public', table:'app_state' }, async () => {
       const ok = await cloudPull();
       if (ok) {
-        showToast('🔄 Data synchronizována');
-        if (currentPage) navigateTo(currentPage);
+        showToast('🔄 Data synchronizována', { skipSave: true });
+        refreshCurrentView();
       }
     })
     .subscribe();
@@ -685,6 +685,7 @@ function autoSave() {
 // ── STATE ─────────────────────────────────────────────
 let currentUser = null;
 let currentPage = 'dashboard';
+let detailView = null;
 let selectedOrder = null;
 let selectedStation = null;
 
@@ -851,6 +852,7 @@ function buildNav() {
 function navigateTo(page) {
   // Při přechodu pryč ze stránky zakázek (mimo přes showOrdersFiltered) zruš filtr
   if (currentPage === 'orders' && page !== 'orders') orderFilter = null;
+  detailView = null;
 
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.navtab').forEach(t => t.classList.remove('active'));
@@ -878,6 +880,18 @@ function navigateTo(page) {
   document.querySelectorAll('.bn-item').forEach(t => t.classList.remove('active'));
   document.getElementById('tab-' + page)?.classList.add('active');
   document.getElementById('bn-' + page)?.classList.add('active');
+}
+
+function refreshCurrentView() {
+  if (detailView?.type === 'station') {
+    openStation(detailView.orderId, detailView.stId, { fromSync: true });
+    return;
+  }
+  if (detailView?.type === 'order') {
+    openOrder(detailView.orderId, { fromSync: true });
+    return;
+  }
+  if (currentPage) navigateTo(currentPage);
 }
 
 // ── ISSUES PAGE (visible to ALL users) ────────────────
@@ -1141,9 +1155,14 @@ function ordersListHtml(list) {
 }
 
 // ── ORDER DETAIL ──────────────────────────────────────
-function openOrder(orderId) {
+function openOrder(orderId, options = {}) {
   selectedOrder = ORDERS.find(o => o.id === orderId);
-  if (!selectedOrder) return;
+  if (!selectedOrder) {
+    detailView = null;
+    if (options.fromSync) navigateTo('orders');
+    return;
+  }
+  detailView = { type: 'order', orderId };
 
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.navtab').forEach(t => t.classList.remove('active'));
@@ -1393,10 +1412,15 @@ function removeDoc(orderId, idx) {
 }
 
 // ── STATION DETAIL ────────────────────────────────────
-function openStation(orderId, stId) {
+function openStation(orderId, stId, options = {}) {
   selectedOrder = ORDERS.find(o => o.id === orderId);
   selectedStation = selectedOrder?.stations.find(s => s.stId === Number(stId));
-  if (!selectedOrder || !selectedStation) return;
+  if (!selectedOrder || !selectedStation) {
+    detailView = null;
+    if (options.fromSync) navigateTo('orders');
+    return;
+  }
+  detailView = { type: 'station', orderId, stId: Number(stId) };
 
   const stInfo = STATIONS.find(x => x.id === Number(stId));
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -2657,14 +2681,14 @@ function formatDate(d) {
 }
 
 let toastTimer;
-function showToast(msg) {
+function showToast(msg, options = {}) {
   const t = document.getElementById('toast');
   t.textContent = msg;
   t.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
-  // Při jakékoliv akci, která vede k toast, ulož stav
-  autoSave();
+  // Bezne akce ukladaji stav, ale systemove sync hlasky nesmi spoustet dalsi cloud zapis.
+  if (!options.skipSave) autoSave();
 }
 
 // ── CLOSE ON BG CLICK ─────────────────────────────────

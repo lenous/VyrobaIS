@@ -1,5 +1,5 @@
 // VýrobaIS service worker
-const CACHE = 'vyrobais-v2';
+const CACHE = 'vyrobais-v3';
 const ASSETS = [
   './',
   './index.html',
