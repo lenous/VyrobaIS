@@ -27,7 +27,8 @@ Heslo pro všechny uživatele: `1234`
 - Hlášení problémů vedoucímu (viditelné všem, mistr/admin řeší)
 - Poznámky k výrobě (umístění, náhrady součástek, změny postupu)
 - Údaje o zakázce: technologie (OLOVO/BEZOLOVO), typ výroby (Nová / Opakovaná / Revize),
-  číslo planžety, dokumenty (BOM, osazovací výkres, GBR pasta, ostatní)
+  číslo objednávky, číslo planžety, dokumenty (BOM, osazovací výkres, GBR pasta, ostatní)
+- Paměť výrobku pro opakovanou výrobu: programy stanovišť/AOI/pájení a fotka výrobku
 - Autocomplete zákazníků a výrobků z předchozích zakázek
 - Správa stanovišť k zakázce – mistr/admin může stanoviště zapínat/vypínat
 - Role-based přístup, admin panel s nastavením aplikace

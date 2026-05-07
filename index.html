@@ -482,7 +482,7 @@ const LS_KEY = 'vyrobais_state_v1';
 const CLOUD_ROW_ID = 'main';
 
 function currentState() {
-  return { ORDERS, ISSUES, PROD_NOTES, USERS, APP_SETTINGS, NEXT_ORDER_CODE, LOGIN_LOGS };
+  return { ORDERS, ISSUES, PROD_NOTES, USERS, APP_SETTINGS, NEXT_ORDER_CODE, LOGIN_LOGS, PRODUCT_MEMORY };
 }
 function applyState(s) {
   if (!s) return;
@@ -491,8 +491,10 @@ function applyState(s) {
   if (Array.isArray(s.PROD_NOTES)) PROD_NOTES = s.PROD_NOTES;
   if (Array.isArray(s.USERS) && s.USERS.length) USERS = s.USERS;
   if (Array.isArray(s.LOGIN_LOGS)) LOGIN_LOGS = s.LOGIN_LOGS;
+  if (s.PRODUCT_MEMORY && typeof s.PRODUCT_MEMORY === 'object') PRODUCT_MEMORY = s.PRODUCT_MEMORY;
   if (s.APP_SETTINGS) APP_SETTINGS = { ...APP_SETTINGS, ...s.APP_SETTINGS };
   if (s.NEXT_ORDER_CODE) NEXT_ORDER_CODE = s.NEXT_ORDER_CODE;
+  normalizeAppData();
 }
 
 function saveState() {
@@ -670,6 +672,7 @@ let ORDERS = [
 
 const LOGIN_LOG_KEY = 'vyrobais-login-log-v1';
 let LOGIN_LOGS = loadLoginLogs();
+let PRODUCT_MEMORY = {};
 
 // ── HYDRATE z localStorage (demo data jsou fallback) ─
 const _saved = loadState();
@@ -678,6 +681,7 @@ if (_saved) {
   if (Array.isArray(_saved.ISSUES))     ISSUES     = _saved.ISSUES;
   if (Array.isArray(_saved.PROD_NOTES)) PROD_NOTES = _saved.PROD_NOTES;
   if (Array.isArray(_saved.LOGIN_LOGS)) LOGIN_LOGS = _saved.LOGIN_LOGS;
+  if (_saved.PRODUCT_MEMORY && typeof _saved.PRODUCT_MEMORY === 'object') PRODUCT_MEMORY = _saved.PRODUCT_MEMORY;
   if (Array.isArray(_saved.USERS) && _saved.USERS.length) {
     // sloučit – nepřepisovat výchozí uživatele, jen přidat nové
     const existingLogins = new Set(USERS.map(u => u.login));
@@ -686,6 +690,7 @@ if (_saved) {
   if (_saved.APP_SETTINGS)  APP_SETTINGS = { ...APP_SETTINGS, ..._saved.APP_SETTINGS };
   if (_saved.NEXT_ORDER_CODE) NEXT_ORDER_CODE = _saved.NEXT_ORDER_CODE;
 }
+normalizeAppData();
 
 // Auto-save při změně stavu
 let _saveDebounce;
@@ -824,6 +829,8 @@ function can(action) {
     edit_qty:       ['operator','tpv','dispatcher','management','admin'],
     change_status:  ['operator','tpv','dispatcher','management','admin'],
     create_order:   ['dispatcher','management','admin'],
+    edit_order_info:['dispatcher','management','admin'],
+    edit_product_memory:['operator','tpv','dispatcher','management','admin'],
     view_kpi:       ['dispatcher','management','admin'],
     manage_users:   ['admin'],
     app_settings:   ['admin'],
@@ -1254,6 +1261,7 @@ function openOrder(orderId, options = {}) {
     </div>
 
     ${orderInfoCardHtml(selectedOrder)}
+    ${productPhotoCardHtml(selectedOrder)}
     ${orderDocsCardHtml(selectedOrder)}
 
     <div style="display:flex;align-items:center;justify-content:space-between;margin:16px 0 8px">
@@ -1300,8 +1308,15 @@ function orderInfoCardHtml(o) {
   const techColor = o.technology === 'olovo' ? '#a16207' : '#d4a017';
   const techLabel = o.technology === 'olovo' ? '🔧 OLOVO' : '⚡ BEZOLOVO';
   return `<div class="card">
-    <div class="card-title">📋 Údaje o zakázce</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px">
+      <div class="card-title" style="margin:0">📋 Údaje o zakázce</div>
+      ${can('edit_order_info') ? `<button class="btn btn-ghost btn-sm" onclick="editOrderInfoModal('${o.id}')">✏️ Upravit</button>` : ''}
+    </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px">
+      <div>
+        <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px">Číslo objednávky</div>
+        <div style="font-size:13px;color:${o.purchaseOrderNumber ? 'var(--gold)' : 'var(--text3)'};font-weight:700;font-family:'SF Mono',Menlo,monospace;margin-top:2px">${escapeHtml(o.purchaseOrderNumber || '—')}</div>
+      </div>
       <div>
         <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px">Datum objednání</div>
         <div style="font-size:13px;color:var(--text);font-weight:600;margin-top:2px">${formatDate(o.orderDate || '')}</div>
@@ -1324,6 +1339,195 @@ function orderInfoCardHtml(o) {
       </div>` : ''}
     </div>
   </div>`;
+}
+
+function productPhotoCardHtml(order, compact = false) {
+  const hasPhoto = !!order.productPhotoDataUrl;
+  const canEdit = can('edit_product_memory');
+  return `<div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px">
+      <div class="card-title" style="margin:0">📷 Foto výrobku pro opakovanou výrobu</div>
+      ${canEdit ? `<label class="btn btn-teal btn-sm" style="cursor:pointer">
+        ${hasPhoto ? '↻ Změnit' : '+ Vyfotit'}
+        <input type="file" accept="image/*" capture="environment" style="display:none"
+          onchange="saveProductPhoto('${order.id}', this.files[0])">
+      </label>` : ''}
+    </div>
+    ${hasPhoto
+      ? `<img src="${order.productPhotoDataUrl}" alt="Foto výrobku ${escapeHtml(order.name)}"
+          style="width:100%;${compact ? 'max-height:160px' : 'max-height:260px'};object-fit:cover;border-radius:10px;border:1px solid var(--border);background:var(--card2)">`
+      : `<div style="border:1px dashed var(--border);border-radius:10px;padding:16px;text-align:center;color:var(--text3);font-size:12px">
+          Zatím není uložená fotka výrobku.
+        </div>`}
+    <div style="font-size:10px;color:var(--text3);margin-top:8px;line-height:1.4">
+      Fotka se uloží k výrobku a u opakované výroby se znovu zobrazí.
+    </div>
+  </div>`;
+}
+
+function stationProgramLabel(stId) {
+  if (Number(stId) === 2) return 'Program automatu';
+  if (Number(stId) === 3) return 'Program AOI kontroly';
+  if (Number(stId) === 6) return 'Program pájení vlnou / selektivní';
+  return 'Program / nastavení stanoviště';
+}
+
+function stationProgramCardHtml(order, station, stInfo) {
+  const program = order.stationPrograms?.[station.stId] || '';
+  const label = stationProgramLabel(station.stId);
+  return `<div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px">
+      <div class="card-title" style="margin:0">🧠 ${label}</div>
+      <span style="font-size:11px;color:var(--text2)">${stInfo?.icon || ''} ${escapeHtml(stInfo?.name || '')}</span>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input class="input" id="station-program-input" value="${escapeHtml(program)}"
+        placeholder="zadejte číslo nebo název programu" ${can('edit_product_memory') ? '' : 'disabled'}
+        style="flex:1;margin-bottom:0">
+      ${can('edit_product_memory') ? `<button class="btn btn-primary btn-sm" onclick="saveStationProgram()">Uložit</button>` : ''}
+    </div>
+    <div style="font-size:10px;color:var(--text3);margin-top:8px;line-height:1.4">
+      Program se uloží k výrobku a při opakované výrobě se znovu předvyplní.
+    </div>
+  </div>`;
+}
+
+function editOrderInfoModal(orderId) {
+  if (!can('edit_order_info')) return;
+  const o = ORDERS.find(x => x.id === orderId);
+  if (!o) return;
+  openModal('Upravit údaje zakázky', `
+    <div class="input-group">
+      <div class="input-label">Číslo objednávky</div>
+      <input class="input" id="eoi-po" value="${escapeHtml(o.purchaseOrderNumber || '')}" placeholder="např. OBJ-2026-001">
+    </div>
+    <div class="input-group">
+      <div class="input-label">Název výrobku</div>
+      <input class="input" id="eoi-name" value="${escapeHtml(o.name || '')}">
+    </div>
+    <div class="input-group">
+      <div class="input-label">Zákazník</div>
+      <input class="input" id="eoi-customer" value="${escapeHtml(o.customer || '')}">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="input-group">
+        <div class="input-label">Počet kusů</div>
+        <input class="input" id="eoi-qty" type="number" min="1" value="${Number(o.qty) || 1}">
+      </div>
+      <div class="input-group">
+        <div class="input-label">Priorita</div>
+        <select class="input" id="eoi-priority">
+          ${['low','normal','high','urgent'].map(p=>`<option value="${p}" ${o.priority===p?'selected':''}>${priorityLabel(p)}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="input-group">
+        <div class="input-label">Datum objednání</div>
+        <input class="input" id="eoi-order-date" type="date" value="${escapeHtml(o.orderDate || '')}">
+      </div>
+      <div class="input-group">
+        <div class="input-label">Termín dodání</div>
+        <input class="input" id="eoi-due" type="date" value="${escapeHtml(o.due || '')}">
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="input-group">
+        <div class="input-label">Technologie</div>
+        <select class="input" id="eoi-tech">
+          <option value="bezolovo" ${o.technology !== 'olovo' ? 'selected' : ''}>BEZOLOVO</option>
+          <option value="olovo" ${o.technology === 'olovo' ? 'selected' : ''}>OLOVO</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <div class="input-label">Typ výroby</div>
+        <select class="input" id="eoi-pt">
+          ${Object.entries(PROD_TYPES).map(([k,v])=>`<option value="${k}" ${o.productionType===k?'selected':''}>${v.label}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="input-group">
+      <div class="input-label">Číslo planžety</div>
+      <input class="input" id="eoi-stencil" value="${escapeHtml(o.stencilNumber || '')}">
+    </div>
+  `, [
+    { label:'Zrušit', action:'closeModal()', cls:'btn-ghost' },
+    { label:'Uložit', action:`saveOrderInfo('${orderId}')`, cls:'btn-primary' },
+  ]);
+}
+
+function saveOrderInfo(orderId) {
+  if (!can('edit_order_info')) return;
+  const o = ORDERS.find(x => x.id === orderId);
+  if (!o) return;
+  o.purchaseOrderNumber = document.getElementById('eoi-po').value.trim();
+  o.name = document.getElementById('eoi-name').value.trim() || o.name;
+  o.customer = document.getElementById('eoi-customer').value.trim() || o.customer;
+  o.qty = Math.max(1, Number(document.getElementById('eoi-qty').value) || 1);
+  o.priority = document.getElementById('eoi-priority').value;
+  o.orderDate = document.getElementById('eoi-order-date').value || '';
+  o.due = document.getElementById('eoi-due').value || '';
+  o.technology = document.getElementById('eoi-tech').value;
+  o.productionType = document.getElementById('eoi-pt').value;
+  o.stencilNumber = document.getElementById('eoi-stencil').value.trim();
+  applyProductMemoryToOrder(o);
+  updateProductMemory(o);
+  closeModal();
+  openOrder(orderId);
+  showToast('✅ Údaje zakázky uloženy');
+}
+
+function saveStationProgram() {
+  if (!selectedOrder || !selectedStation || !can('edit_product_memory')) return;
+  const value = document.getElementById('station-program-input').value.trim();
+  selectedOrder.stationPrograms = selectedOrder.stationPrograms || {};
+  if (value) selectedOrder.stationPrograms[selectedStation.stId] = value;
+  else delete selectedOrder.stationPrograms[selectedStation.stId];
+  updateProductMemory(selectedOrder);
+  showToast('✅ Program uložen k výrobku');
+}
+
+async function saveProductPhoto(orderId, file) {
+  if (!file || !can('edit_product_memory')) return;
+  const o = ORDERS.find(x => x.id === orderId);
+  if (!o) return;
+  try {
+    o.productPhotoDataUrl = await compressImageFile(file);
+    updateProductMemory(o);
+    if (detailView?.type === 'station') {
+      const stInfo = STATIONS.find(x => x.id === selectedStation.stId);
+      renderStationDetail(stInfo);
+    } else {
+      openOrder(orderId);
+    }
+    showToast('✅ Fotka výrobku uložena');
+  } catch (e) {
+    console.warn('Photo save failed:', e);
+    showToast('⚠️ Fotku se nepodařilo uložit');
+  }
+}
+
+function compressImageFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = () => {
+        const max = 900;
+        const scale = Math.min(1, max / Math.max(img.width, img.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(img.width * scale));
+        canvas.height = Math.max(1, Math.round(img.height * scale));
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', 0.72));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
 function orderDocsCardHtml(o) {
@@ -1498,6 +1702,9 @@ function renderStationDetail(stInfo) {
       </div>
       <span class="badge ${statusClass}" style="margin-left:auto">${statusLbl}</span>
     </div>
+
+    ${productPhotoCardHtml(selectedOrder, true)}
+    ${stationProgramCardHtml(selectedOrder, selectedStation, stInfo)}
 
     <!-- QTY -->
     <div class="card">
@@ -2102,7 +2309,7 @@ window.disconnectCloud = function() {
 };
 
 window.exportData = function() {
-  const data = { ORDERS, ISSUES, PROD_NOTES, USERS, APP_SETTINGS, NEXT_ORDER_CODE,
+  const data = { ORDERS, ISSUES, PROD_NOTES, USERS, APP_SETTINGS, NEXT_ORDER_CODE, PRODUCT_MEMORY,
     exportedAt: new Date().toISOString() };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
   const a = document.createElement('a');
@@ -2285,6 +2492,8 @@ function renderProfile() {
         ['edit_qty','Zadávání počtů kusů'],
         ['change_status','Změna stavu stanoviště'],
         ['create_order','Vytváření zakázek'],
+        ['edit_order_info','Úprava údajů zakázky'],
+        ['edit_product_memory','Programy a fotky výrobku'],
         ['view_kpi','Přístup ke KPI'],
         ['manage_users','Správa uživatelů'],
         ['app_settings','Nastavení aplikace'],
@@ -2325,6 +2534,60 @@ function knownProducts(customer) {
   )].sort();
 }
 
+function productKey(customer, name) {
+  return `${String(customer || '').trim().toLowerCase()}::${String(name || '').trim().toLowerCase()}`;
+}
+
+function productMemoryForOrder(order) {
+  if (!order) return null;
+  const key = productKey(order.customer, order.name);
+  if (!key.replace('::', '')) return null;
+  PRODUCT_MEMORY[key] = PRODUCT_MEMORY[key] || {
+    customer: order.customer || '',
+    name: order.name || '',
+    stationPrograms: {},
+    photoDataUrl: '',
+    updatedAt: '',
+  };
+  return PRODUCT_MEMORY[key];
+}
+
+function applyProductMemoryToOrder(order) {
+  const memory = productMemoryForOrder(order);
+  if (!order || !memory || order.productionType !== 'repeat') return;
+  order.stationPrograms = { ...(memory.stationPrograms || {}), ...(order.stationPrograms || {}) };
+  if (!order.productPhotoDataUrl && memory.photoDataUrl) order.productPhotoDataUrl = memory.photoDataUrl;
+}
+
+function updateProductMemory(order) {
+  const memory = productMemoryForOrder(order);
+  if (!order || !memory) return;
+  memory.customer = order.customer || memory.customer || '';
+  memory.name = order.name || memory.name || '';
+  memory.stationPrograms = { ...(memory.stationPrograms || {}), ...(order.stationPrograms || {}) };
+  if (order.productPhotoDataUrl) memory.photoDataUrl = order.productPhotoDataUrl;
+  memory.updatedAt = new Date().toISOString();
+}
+
+function normalizeAppData() {
+  ORDERS.forEach(order => {
+    order.purchaseOrderNumber ??= '';
+    order.stationPrograms = order.stationPrograms || {};
+    order.productPhotoDataUrl ??= '';
+    order.documents = Array.isArray(order.documents) ? order.documents : [];
+    order.stations = Array.isArray(order.stations) ? order.stations : [];
+    order.stations.forEach(st => {
+      st.stId = Number(st.stId);
+      st.status ||= 'waiting';
+      st.qtyOk = Math.max(0, Number(st.qtyOk) || 0);
+      st.qtyRework = Math.max(0, Number(st.qtyRework) || 0);
+      st.qtyScrap = Math.max(0, Number(st.qtyScrap) || 0);
+      st.qtyReceived = Math.max(0, Number(st.qtyReceived) || 0);
+    });
+    applyProductMemoryToOrder(order);
+  });
+}
+
 const PROD_TYPES = {
   new:      { label:'Nová výroba',   icon:'🆕', color:'#22c55e' },
   repeat:   { label:'Opakovaná',     icon:'🔁', color:'#3b82f6' },
@@ -2359,6 +2622,11 @@ function newOrderModal() {
       <div class="input-label">Zákazník</div>
       <input class="input" id="nm-customer" list="dl-customers" placeholder="začněte psát…"
         oninput="document.getElementById('dl-products').innerHTML = knownProducts(this.value).map(p=>'<option value=\\''+p+'\\'>').join('')">
+    </div>
+
+    <div class="input-group">
+      <div class="input-label">Číslo objednávky</div>
+      <input class="input" id="nm-po" placeholder="volitelné, např. OBJ-2026-001">
     </div>
 
     <div class="input-group">
@@ -2552,11 +2820,12 @@ function createOrder() {
   if (!customer) { showToast('⚠️ Vyplňte zákazníka'); return; }
   if (!name)     { showToast('⚠️ Vyplňte název výrobku'); return; }
   const num = String(NEXT_ORDER_CODE++);
-  ORDERS.push({
+  const order = {
     id: 'o' + Date.now(),
     number: num,
     name,
     customer,
+    purchaseOrderNumber: document.getElementById('nm-po').value.trim(),
     priority: document.getElementById('nm-priority').value,
     qty: parseInt(document.getElementById('nm-qty').value) || 1,
     due: document.getElementById('nm-due').value || '',
@@ -2564,11 +2833,15 @@ function createOrder() {
     technology: document.getElementById('nm-tech').value,
     productionType: document.getElementById('nm-pt').value,
     stencilNumber: document.getElementById('nm-stencil').value.trim(),
+    stationPrograms: {},
+    productPhotoDataUrl: '',
     documents: [...pendingDocs],
     stations: pickedStations.map(stId => ({
       stId, status:'waiting', qtyOk:0, qtyRework:0, qtyScrap:0, qtyReceived:0,
     })),
-  });
+  };
+  applyProductMemoryToOrder(order);
+  ORDERS.push(order);
   pendingDocs = [];
   pickedStations = DEFAULT_STATIONS.slice();
   closeModal();
@@ -2577,6 +2850,8 @@ function createOrder() {
 }
 
 function editOrderModal(orderId) {
+  editOrderInfoModal(orderId);
+  return;
   const o = ORDERS.find(x=>x.id===orderId);
   if (!o) return;
   openModal('Upravit zakázku', `
