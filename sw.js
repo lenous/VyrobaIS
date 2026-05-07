@@ -1,5 +1,5 @@
-// VýrobaIS service worker – offline-first cache
-const CACHE = 'vyrobais-v1';
+// VýrobaIS service worker
+const CACHE = 'vyrobais-v2';
 const ASSETS = [
   './',
   './index.html',
@@ -23,8 +23,23 @@ self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
 
-  // Network-first pro Supabase API, cache-first pro statické soubory
   const url = new URL(req.url);
+
+  // Network-first pro hlavni aplikaci, aby mobil nezustal na stare verzi index.html.
+  if (req.mode === 'navigate' || url.pathname.endsWith('/index.html') || url.pathname.endsWith('/VyrobaIS/')) {
+    e.respondWith(
+      fetch(req).then(res => {
+        if (res.ok && url.origin === location.origin) {
+          const copy = res.clone();
+          caches.open(CACHE).then(c => c.put('./index.html', copy));
+        }
+        return res;
+      }).catch(() => caches.match('./index.html'))
+    );
+    return;
+  }
+
+  // Network-first pro Supabase API, cache-first pro statické soubory
   if (url.hostname.includes('supabase')) {
     e.respondWith(fetch(req).catch(() => caches.match(req)));
     return;

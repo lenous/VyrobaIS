@@ -260,11 +260,14 @@
   .modal-actions { display: flex; gap: 8px; margin-top: 20px; justify-content: flex-end; }
 
   /* Admin */
-  .admin-tabs { display: flex; gap: 4px; margin-bottom: 16px; flex-wrap: wrap; }
+  .admin-tabs {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+    gap: 6px; margin-bottom: 16px;
+  }
   .admin-tab {
     font-size: 12px; font-weight: 600; color: var(--text2); padding: 7px 14px;
     border-radius: var(--radius); cursor: pointer; background: var(--card2); border: 1px solid var(--border);
-    transition: all .2s;
+    transition: all .2s; text-align: center;
   }
   .admin-tab.active { background: var(--gold); color: #0a0a0a; border-color: var(--gold); }
   .admin-section { display: none; }
@@ -449,8 +452,10 @@ if ('serviceWorker' in navigator) {
 // ── SUPABASE CONFIG ───────────────────────────────────
 // Konfiguraci nastavte v Admin → ☁️ Cloud (URL + anon key)
 // Když je prázdné, aplikace běží jen s localStorage v prohlížeči.
-const SUPABASE_URL = localStorage.getItem('vyrobais_supabase_url') || '';
-const SUPABASE_KEY = localStorage.getItem('vyrobais_supabase_key') || '';
+const DEFAULT_SUPABASE_URL = '';
+const DEFAULT_SUPABASE_KEY = '';
+const SUPABASE_URL = localStorage.getItem('vyrobais_supabase_url') || DEFAULT_SUPABASE_URL;
+const SUPABASE_KEY = localStorage.getItem('vyrobais_supabase_key') || DEFAULT_SUPABASE_KEY;
 
 let db = null;
 if (SUPABASE_URL && SUPABASE_KEY && window.supabase) {
@@ -1948,8 +1953,8 @@ function renderAdmin() {
 }
 
 function renderAdminCloud() {
-  const url = localStorage.getItem('vyrobais_supabase_url') || '';
-  const key = localStorage.getItem('vyrobais_supabase_key') || '';
+  const url = localStorage.getItem('vyrobais_supabase_url') || DEFAULT_SUPABASE_URL;
+  const key = localStorage.getItem('vyrobais_supabase_key') || DEFAULT_SUPABASE_KEY;
   const connected = db !== null;
   return `
     <div class="card" style="background:${connected?'rgba(34,197,94,.08)':'var(--card)'};border:1px solid ${connected?'var(--green)':'var(--border)'}">
