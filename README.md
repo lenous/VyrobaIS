@@ -46,11 +46,16 @@ Po instalaci se VýrobaIS spouští v samostatném okně, má vlastní ikonu a b
 
 ## Persistence dat
 
+### Cloud sdílený (Supabase)
+Aplikace je ve výchozím stavu napojená na Supabase projekt `VýrobaIS`
+(`fiiaiooxwegrdtlpwqey`). Data se ukládají do tabulky `app_state` a synchronizují
+se mezi zařízeními.
+
 ### Lokální (výchozí)
 Data se ukládají do localStorage prohlížeče. Vydrží reload, ale jsou viditelná
 **jen v daném prohlížeči / zařízení**.
 
-### Cloud sdílený (Supabase)
+### Změna cloud připojení
 Pro sdílení mezi uživateli a zařízeními:
 
 1. Vytvořte si projekt zdarma na [supabase.com](https://supabase.com)
