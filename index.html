@@ -4,6 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>VýrobaIS – Systém řízení výroby</title>
+<meta name="description" content="Systém řízení výroby pro elektronickou výrobu (EMS).">
+<meta name="theme-color" content="#0a0a0a">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="VýrobaIS">
 <style>
   :root {
     --bg:        #0a0a0a;
@@ -365,6 +373,7 @@
   <!-- Topbar -->
   <div class="topbar">
     <div class="topbar-logo">VÝROBA<span>IS</span></div>
+    <span id="tbar-cloud" class="role-badge" style="font-size:10px"></span>
     <span id="tbar-name" class="topbar-user"></span>
     <span id="tbar-role" class="role-badge"></span>
     <button class="logout-btn" onclick="doLogout()">Odhlásit</button>
@@ -428,9 +437,103 @@
 <!-- ════════════════════════════════
      DATA & LOGIC
 ════════════════════════════════ -->
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 <script>
+// ── PWA: SERVICE WORKER ───────────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () =>
+    navigator.serviceWorker.register('sw.js').catch(err => console.warn('SW reg failed:', err))
+  );
+}
+
+// ── SUPABASE CONFIG ───────────────────────────────────
+// Konfiguraci nastavte v Admin → ☁️ Cloud (URL + anon key)
+// Když je prázdné, aplikace běží jen s localStorage v prohlížeči.
+const SUPABASE_URL = localStorage.getItem('vyrobais_supabase_url') || '';
+const SUPABASE_KEY = localStorage.getItem('vyrobais_supabase_key') || '';
+
+let db = null;
+if (SUPABASE_URL && SUPABASE_KEY && window.supabase) {
+  try {
+    db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    console.log('✅ Supabase připojen:', SUPABASE_URL);
+  } catch (e) { console.warn('Supabase init failed:', e); }
+}
+
+// ── PERSISTENCE: localStorage + Supabase ──────────────
+const LS_KEY = 'vyrobais_state_v1';
+const CLOUD_ROW_ID = 'main';
+
+function currentState() {
+  return { ORDERS, ISSUES, PROD_NOTES, USERS, APP_SETTINGS, NEXT_ORDER_CODE };
+}
+function applyState(s) {
+  if (!s) return;
+  if (Array.isArray(s.ORDERS))     ORDERS     = s.ORDERS;
+  if (Array.isArray(s.ISSUES))     ISSUES     = s.ISSUES;
+  if (Array.isArray(s.PROD_NOTES)) PROD_NOTES = s.PROD_NOTES;
+  if (Array.isArray(s.USERS) && s.USERS.length) USERS = s.USERS;
+  if (s.APP_SETTINGS) APP_SETTINGS = { ...APP_SETTINGS, ...s.APP_SETTINGS };
+  if (s.NEXT_ORDER_CODE) NEXT_ORDER_CODE = s.NEXT_ORDER_CODE;
+}
+
+function saveState() {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(currentState())); }
+  catch (e) { console.warn('LS save failed:', e); }
+  cloudPush();
+}
+function loadState() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+function resetState() {
+  if (!confirm('Opravdu vymazat všechna lokální data a vrátit demo?')) return;
+  localStorage.removeItem(LS_KEY);
+  location.reload();
+}
+
+// Cloud sync: jeden řádek s JSONB blobem (jednoduché, postačí pro malou dílnu)
+let cloudPushTimer;
+function cloudPush() {
+  if (!db) return;
+  clearTimeout(cloudPushTimer);
+  cloudPushTimer = setTimeout(async () => {
+    try {
+      await db.from('app_state')
+        .upsert({ id: CLOUD_ROW_ID, data: currentState(), updated_at: new Date().toISOString() });
+    } catch (e) { console.warn('Cloud push failed:', e); }
+  }, 800);
+}
+
+async function cloudPull() {
+  if (!db) return false;
+  try {
+    const { data, error } = await db.from('app_state')
+      .select('data, updated_at').eq('id', CLOUD_ROW_ID).maybeSingle();
+    if (error) { console.warn('Cloud pull error:', error); return false; }
+    if (data?.data) { applyState(data.data); return true; }
+  } catch (e) { console.warn('Cloud pull failed:', e); }
+  return false;
+}
+
+// Realtime: refresh při změně z jiného zařízení
+function startCloudRealtime() {
+  if (!db) return;
+  db.channel('app_state_ch')
+    .on('postgres_changes', { event:'*', schema:'public', table:'app_state' }, async () => {
+      const ok = await cloudPull();
+      if (ok) {
+        showToast('🔄 Data synchronizována');
+        if (currentPage) navigateTo(currentPage);
+      }
+    })
+    .subscribe();
+}
+
 // ── USERS ──────────────────────────────────────────────
-const USERS = [
+let USERS = [
   { id:'u1', login:'admin',  password:'1234', role:'admin',      name:'Administrátor',    avatar:'🔧', color:'#ef4444' },
   { id:'u2', login:'mistr',  password:'1234', role:'dispatcher', name:'Jan Novák',        avatar:'👷', color:'#3b82f6' },
   { id:'u3', login:'tpv',    password:'1234', role:'tpv',        name:'Petra Svobodová',  avatar:'📐', color:'#a855f7' },
@@ -547,6 +650,28 @@ let ORDERS = [
   },
 ];
 
+// ── HYDRATE z localStorage (demo data jsou fallback) ─
+const _saved = loadState();
+if (_saved) {
+  if (Array.isArray(_saved.ORDERS))     ORDERS     = _saved.ORDERS;
+  if (Array.isArray(_saved.ISSUES))     ISSUES     = _saved.ISSUES;
+  if (Array.isArray(_saved.PROD_NOTES)) PROD_NOTES = _saved.PROD_NOTES;
+  if (Array.isArray(_saved.USERS) && _saved.USERS.length) {
+    // sloučit – nepřepisovat výchozí uživatele, jen přidat nové
+    const existingLogins = new Set(USERS.map(u => u.login));
+    _saved.USERS.forEach(u => { if (!existingLogins.has(u.login)) USERS.push(u); });
+  }
+  if (_saved.APP_SETTINGS)  APP_SETTINGS = { ...APP_SETTINGS, ..._saved.APP_SETTINGS };
+  if (_saved.NEXT_ORDER_CODE) NEXT_ORDER_CODE = _saved.NEXT_ORDER_CODE;
+}
+
+// Auto-save při změně stavu
+let _saveDebounce;
+function autoSave() {
+  clearTimeout(_saveDebounce);
+  _saveDebounce = setTimeout(saveState, 200);
+}
+
 // ── STATE ─────────────────────────────────────────────
 let currentUser = null;
 let currentPage = 'dashboard';
@@ -602,12 +727,31 @@ function can(action) {
 }
 
 // ── INIT ──────────────────────────────────────────────
-function initApp() {
+async function initApp() {
+  // Pokud je cloud připojen, stáhneme aktuální stav před prvním renderem
+  if (db) {
+    const ok = await cloudPull();
+    if (ok) console.log('📥 Stav stažen z cloudu');
+    startCloudRealtime();
+  }
+
   // Topbar
   document.getElementById('tbar-name').textContent = currentUser.name;
   const rb = document.getElementById('tbar-role');
   rb.textContent = ROLE_LABELS[currentUser.role];
   rb.className = 'role-badge role-' + currentUser.role;
+
+  // Cloud indikátor
+  const cb = document.getElementById('tbar-cloud');
+  if (db) {
+    cb.textContent = '☁️ Cloud';
+    cb.style.background = 'rgba(34,197,94,.15)';
+    cb.style.color = 'var(--green)';
+  } else {
+    cb.textContent = '💾 Lokálně';
+    cb.style.background = 'rgba(153,153,153,.15)';
+    cb.style.color = 'var(--text2)';
+  }
 
   buildNav();
   navigateTo('dashboard');
@@ -1723,6 +1867,7 @@ function renderAdmin() {
       <div class="admin-tab ${adminTab==='settings'?'active':''}" onclick="switchAdminTab('settings')">⚙️ Nastavení</div>
       <div class="admin-tab ${adminTab==='stations'?'active':''}" onclick="switchAdminTab('stations')">🏭 Stanoviště</div>
       <div class="admin-tab ${adminTab==='orders_mgmt'?'active':''}" onclick="switchAdminTab('orders_mgmt')">📋 Zakázky</div>
+      <div class="admin-tab ${adminTab==='cloud'?'active':''}" onclick="switchAdminTab('cloud')">☁️ Cloud</div>
     </div>
 
     <div class="admin-section ${adminTab==='users'?'active':''}" id="adm-users">
@@ -1737,8 +1882,103 @@ function renderAdmin() {
     <div class="admin-section ${adminTab==='orders_mgmt'?'active':''}" id="adm-orders">
       ${renderAdminOrders()}
     </div>
+    <div class="admin-section ${adminTab==='cloud'?'active':''}" id="adm-cloud">
+      ${renderAdminCloud()}
+    </div>
   `;
 }
+
+function renderAdminCloud() {
+  const url = localStorage.getItem('vyrobais_supabase_url') || '';
+  const key = localStorage.getItem('vyrobais_supabase_key') || '';
+  const connected = db !== null;
+  return `
+    <div class="card" style="background:${connected?'rgba(34,197,94,.08)':'var(--card)'};border:1px solid ${connected?'var(--green)':'var(--border)'}">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="font-size:24px">${connected?'✅':'☁️'}</div>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:700;color:${connected?'var(--green)':'var(--text)'}">
+            ${connected ? 'Připojeno k Supabase' : 'Cloud zatím nepřipojen'}
+          </div>
+          <div style="font-size:11px;color:var(--text2);margin-top:2px">
+            ${connected
+              ? 'Data se synchronizují se sdílenou databází.'
+              : 'Aplikace ukládá data lokálně do prohlížeče. Pro sdílení mezi zařízeními a uživateli připojte Supabase.'}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🔗 Konfigurace Supabase</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.5">
+        1. Vytvořte si projekt na <span style="color:var(--gold)">supabase.com</span> (zdarma)<br>
+        2. SQL Editor → spusťte schema.sql z GitHub repa<br>
+        3. Settings → API → zkopírujte URL a anon key níže
+      </div>
+
+      <div class="input-group">
+        <div class="input-label">Project URL</div>
+        <input class="input" id="cloud-url" placeholder="https://xxxxx.supabase.co" value="${escapeHtml(url)}">
+      </div>
+      <div class="input-group">
+        <div class="input-label">Anon (public) key</div>
+        <input class="input" id="cloud-key" placeholder="eyJhbGciOiJI..." value="${escapeHtml(key)}">
+      </div>
+
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn btn-primary" onclick="saveCloudConfig()">💾 Uložit a připojit</button>
+        ${connected ? `<button class="btn btn-ghost" onclick="disconnectCloud()">Odpojit</button>` : ''}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">💾 Lokální data</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:10px">
+        Data uložená v tomto prohlížeči (orders, problémy, poznámky, uživatelé). Po vymazání se vrátí výchozí demo.
+      </div>
+      <button class="btn btn-danger btn-sm" onclick="resetState()">🗑️ Vymazat lokální data</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportData()" style="margin-left:6px">📤 Export JSON</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📱 Instalovat jako aplikaci</div>
+      <div style="font-size:12px;color:var(--text);line-height:1.6">
+        <b>Android / desktop Chrome:</b> ⋮ menu → "Instalovat aplikaci"<br>
+        <b>iOS Safari:</b> ↑ Sdílet → "Přidat na plochu"<br>
+        Po instalaci se VýrobaIS spouští jako samostatná aplikace.
+      </div>
+    </div>
+  `;
+}
+
+window.saveCloudConfig = function() {
+  const url = document.getElementById('cloud-url').value.trim();
+  const key = document.getElementById('cloud-key').value.trim();
+  if (!url || !key) { showToast('⚠️ Vyplňte URL i klíč'); return; }
+  localStorage.setItem('vyrobais_supabase_url', url);
+  localStorage.setItem('vyrobais_supabase_key', key);
+  showToast('✅ Uloženo, restartuji…');
+  setTimeout(() => location.reload(), 700);
+};
+
+window.disconnectCloud = function() {
+  localStorage.removeItem('vyrobais_supabase_url');
+  localStorage.removeItem('vyrobais_supabase_key');
+  showToast('Cloud odpojen, restartuji…');
+  setTimeout(() => location.reload(), 700);
+};
+
+window.exportData = function() {
+  const data = { ORDERS, ISSUES, PROD_NOTES, USERS, APP_SETTINGS, NEXT_ORDER_CODE,
+    exportedAt: new Date().toISOString() };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `vyrobais-export-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  showToast('✅ Export stažen');
+};
 
 function switchAdminTab(tab) { adminTab = tab; renderAdmin(); }
 
@@ -2283,6 +2523,8 @@ function showToast(msg) {
   t.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+  // Při jakékoliv akci, která vede k toast, ulož stav
+  autoSave();
 }
 
 // ── CLOSE ON BG CLICK ─────────────────────────────────
