@@ -10,20 +10,23 @@ Heslo pro všechny uživatele: `1234`
 
 | Login | Jméno | Role |
 |-------|-------|------|
-| `admin` | Administrátor | Admin – plná práva + nastavení |
-| `mistr` | Jan Novák | Mistr výroby |
-| `tpv` | Petra Svobodová | TPV |
-| `vedeni` | Karel Dvořák | Vedení |
-| `op1` | Marie Horáčková | Operátor |
-| `op2` | Tomáš Procházka | Operátor |
-| `op3` | Jana Kučerová | Operátor |
+| `jan` / `jan.novak@firma.cz` | Jan Novák | Operátor |
+| `tpv` / `petr.dvorak@firma.cz` | Petr Dvořák | TPV |
+| `mistr` / `martin.svoboda@firma.cz` | Martin Svoboda | Mistr výroby |
+| `vedeni` / `eva.kralova@firma.cz` | Eva Králová | Vedení |
+| `admin` / `admin@firma.cz` | IT Admin | Admin – plná práva + nastavení |
+| `lucie` / `lucie@firma.cz` | Lucie Bláhová | Operátor automatů |
+| `karel` / `karel@firma.cz` | Karel Malý | Operátor balení / výstupní kontrola |
 
 ## Funkce
 
 - Tmavý elektronický design (inspirace HC Electronics)
 - 6místné číslo zakázky s auto-incrementem (261100+) a vyhledáváním
 - Numerická klávesnice pro zadávání počtů kusů (OK / Oprava / Zmetek)
-- Validace součtu vůči vydanému počtu ze skladu
+- Validace a automatické omezení součtu vůči vydanému počtu ze skladu
+- Sloučená demo data z Expo aplikace: zakázky 260321, 260318, 260315, role a uživatelé
+- Program automatu zapisuje operátor automatů, mistr, vedení nebo admin
+- Checklist pro automaty obsahuje RTG kontrolu
 - Hlášení problémů vedoucímu (viditelné všem, mistr řeší)
 - Poznámky k výrobě (umístění, náhrady součástek, změny postupu)
 - Role-based přístup, admin panel s nastavením aplikace
