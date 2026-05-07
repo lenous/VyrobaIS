@@ -2,7 +2,7 @@
 <html lang="cs">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>VýrobaIS – Systém řízení výroby</title>
 <meta name="description" content="Systém řízení výroby pro elektronickou výrobu (EMS).">
 <meta name="theme-color" content="#0a0a0a">
@@ -35,7 +35,10 @@
     --font:      'Segoe UI', system-ui, sans-serif;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; }
+  html, body { width: 100%; max-width: 100%; overflow-x: hidden; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; overscroll-behavior-x: none; }
+  img, canvas, video, svg { max-width: 100%; height: auto; }
+  button, input, select, textarea { font: inherit; max-width: 100%; }
 
   /* ── LOGIN ── */
   #login-screen {
@@ -43,7 +46,7 @@
     background: radial-gradient(ellipse at 50% 0%, #1a3a2a 0%, #0a0a0a 60%);
   }
   .login-box {
-    width: 340px; background: var(--card); border: 1px solid var(--border);
+    width: min(340px, 100%); background: var(--card); border: 1px solid var(--border);
     border-radius: 16px; padding: 36px 32px; box-shadow: 0 0 60px rgba(212,160,23,0.08);
   }
   .login-logo {
@@ -77,17 +80,17 @@
   .login-error { color: var(--red); font-size: 12px; text-align: center; margin-top: 10px; }
 
   /* ── SHELL ── */
-  #app { display: none; flex-direction: column; min-height: 100vh; }
+  #app { display: none; flex-direction: column; min-height: 100vh; width: 100%; max-width: 100%; overflow-x: hidden; }
   .topbar {
     background: var(--card); border-bottom: 1px solid var(--border);
-    display: flex; align-items: center; padding: 0 16px; height: 52px; gap: 12px; position: sticky; top: 0; z-index: 100;
+    display: flex; align-items: center; padding: 0 16px; height: 52px; gap: 12px; position: sticky; top: 0; z-index: 100; min-width: 0;
   }
-  .topbar-logo { font-size: 18px; font-weight: 900; color: var(--gold); letter-spacing: 1px; flex: 1; }
+  .topbar-logo { font-size: 18px; font-weight: 900; color: var(--gold); letter-spacing: 1px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .topbar-logo span { color: var(--teal2); }
-  .topbar-user { font-size: 12px; color: var(--text2); }
+  .topbar-user { font-size: 12px; color: var(--text2); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .role-badge {
     font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 20px;
-    text-transform: uppercase; letter-spacing: .5px;
+    text-transform: uppercase; letter-spacing: .5px; flex-shrink: 0;
   }
   .role-admin    { background: rgba(239,68,68,.15);   color: #ef4444; }
   .role-dispatcher{ background: rgba(59,130,246,.15); color: #3b82f6; }
@@ -96,7 +99,7 @@
   .role-operator { background: rgba(153,153,153,.15); color: #999; }
   .logout-btn {
     background: none; border: 1px solid var(--border); border-radius: var(--radius);
-    color: var(--text2); font-size: 11px; padding: 5px 10px; cursor: pointer;
+    color: var(--text2); font-size: 11px; padding: 5px 10px; cursor: pointer; flex-shrink: 0;
   }
   .logout-btn:hover { border-color: var(--red); color: var(--red); }
 
@@ -115,13 +118,13 @@
   .navtab .tab-icon { margin-right: 5px; }
 
   /* ── CONTENT ── */
-  .page { display: none; padding: 16px; max-width: 900px; margin: 0 auto; width: 100%; }
+  .page { display: none; padding: 16px; max-width: 900px; margin: 0 auto; width: 100%; min-width: 0; }
   .page.active { display: block; }
 
   /* Cards */
   .card {
     background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 16px; margin-bottom: 12px;
+    padding: 16px; margin-bottom: 12px; min-width: 0; max-width: 100%;
   }
   .card-title {
     font-size: 11px; font-weight: 700; color: var(--text2); text-transform: uppercase;
@@ -162,6 +165,7 @@
     display: inline-flex; align-items: center; gap: 6px;
     border: none; border-radius: var(--radius); cursor: pointer;
     font-size: 13px; font-weight: 600; padding: 9px 16px; transition: opacity .2s;
+    justify-content: center; text-align: center; white-space: normal;
   }
   .btn:hover { opacity: .85; }
   .btn-primary { background: var(--gold); color: #0a0a0a; }
@@ -182,7 +186,7 @@
   .qty-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
   .qty-field {
     background: var(--card2); border: 1.5px solid var(--border); border-radius: var(--radius);
-    padding: 12px; text-align: center; cursor: pointer; transition: border-color .2s;
+    padding: 12px; text-align: center; cursor: pointer; transition: border-color .2s; min-width: 0;
   }
   .qty-field:hover, .qty-field.active { border-color: var(--gold); }
   .qty-field-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; margin-bottom: 4px; }
@@ -340,17 +344,66 @@
     background: var(--card); border-top: 1px solid var(--border);
     padding: 6px 0 10px; z-index: 100;
   }
-  .bottom-nav-inner { display: flex; justify-content: space-around; }
-  .bn-item { display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; padding: 4px 12px; }
-  .bn-item span { font-size: 9px; color: var(--text2); }
+  .bottom-nav-inner { display: flex; justify-content: space-around; width: 100%; max-width: 720px; margin: 0 auto; }
+  .bn-item { display: flex; flex: 1 1 0; min-width: 0; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; padding: 4px 2px; }
+  .bn-item span { font-size: 9px; color: var(--text2); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .bn-item .bn-icon { font-size: 20px; }
   .bn-item.active span, .bn-item.active .bn-icon { color: var(--gold); }
 
+  @media(min-width: 901px) {
+    .page { max-width: 1040px; padding: 20px 24px 24px; }
+    .modal-box { max-width: 520px; }
+    .stat-grid { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+  }
+
   @media(max-width: 600px) {
-    .bottom-nav { display: block; }
+    .bottom-nav { display: block; padding-bottom: calc(8px + env(safe-area-inset-bottom)); }
     .navtabs { display: none; }
-    body { padding-bottom: 60px; }
+    body { padding-bottom: calc(68px + env(safe-area-inset-bottom)); }
+    #login-screen { padding: max(24px, env(safe-area-inset-top)) 16px 16px; align-items: flex-start; }
+    .login-box { width: 100%; max-width: 360px; margin: 0 auto; padding: 28px 20px; border-radius: 14px; }
+    .topbar { height: auto; min-height: 56px; padding: 8px 10px; gap: 8px; }
+    .topbar-logo { flex: 1 1 auto; font-size: clamp(16px, 5vw, 21px); letter-spacing: .4px; }
+    .topbar-user, .logout-btn { display: none; }
+    .role-badge { max-width: 58px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; letter-spacing: 0; padding: 3px 7px; }
+    #tbar-cloud { max-width: 78px; }
+    .page { max-width: 100%; padding: 12px 10px; }
+    .card { padding: 12px; border-radius: 9px; margin-bottom: 10px; }
+    .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .stat-card { padding: 10px 8px; min-width: 0; }
     .stat-val { font-size: 22px; }
+    .stat-lbl { font-size: 10px; }
+    .qty-grid { gap: 6px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .qty-field { padding: 10px 6px; }
+    .qty-field-val { font-size: clamp(24px, 10vw, 34px); }
+    .qty-field-label { font-size: 9px; letter-spacing: .5px; overflow-wrap: anywhere; }
+    .action-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .action-btn { min-width: 0; padding: 9px 8px; justify-content: center; }
+    .station-header { gap: 10px; }
+    .station-badge { width: 42px; height: 42px; min-width: 42px; font-size: 20px; }
+    .modal-overlay { padding: 10px; align-items: flex-end; }
+    .modal-box { max-width: 100%; max-height: 92vh; padding: 18px 14px; border-radius: 14px 14px 0 0; }
+    .modal-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; justify-content: stretch; }
+    .modal-actions .btn { width: 100%; }
+    .admin-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    #toast { max-width: calc(100vw - 24px); white-space: normal; text-align: center; left: 12px; right: 12px; transform: none; }
+    .card [style*="grid-template-columns:1fr 1fr"] { grid-template-columns: 1fr !important; }
+    .card [style*="grid-template-columns:repeat(3,1fr)"] { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+  }
+
+  @media(max-width: 380px) {
+    .topbar { gap: 6px; padding: 7px 8px; }
+    .topbar-logo { font-size: 17px; }
+    .page { padding: 10px 8px; }
+    .card { padding: 11px; }
+    .qty-grid { gap: 5px; }
+    .qty-field { padding: 9px 4px; }
+    .qty-field-val { font-size: 28px; }
+    .bn-item .bn-icon { font-size: 18px; }
+    .bn-item span { font-size: 8px; }
+    .card [style*="min-width:84px"] { min-width: 72px !important; padding-left: 7px !important; padding-right: 7px !important; }
+    .card [style*="font-size:26px"] { font-size: 22px !important; }
+    .card [style*="font-size:20px"] { font-size: 18px !important; }
   }
 </style>
 </head>
