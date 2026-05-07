@@ -431,13 +431,13 @@
 <script>
 // ── USERS ──────────────────────────────────────────────
 const USERS = [
-  { id:'u1', login:'admin',  password:'1234', role:'admin',      name:'Administrátor',    avatar:'🔧', color:'#ef4444' },
-  { id:'u2', login:'mistr',  password:'1234', role:'dispatcher', name:'Jan Novák',        avatar:'👷', color:'#3b82f6' },
-  { id:'u3', login:'tpv',    password:'1234', role:'tpv',        name:'Petra Svobodová',  avatar:'📐', color:'#a855f7' },
-  { id:'u4', login:'vedeni', password:'1234', role:'management', name:'Karel Dvořák',     avatar:'📊', color:'#22c55e' },
-  { id:'u5', login:'op1',    password:'1234', role:'operator',   name:'Marie Horáčková',  avatar:'⚙️', color:'#6b7280' },
-  { id:'u6', login:'op2',    password:'1234', role:'operator',   name:'Tomáš Procházka',  avatar:'⚙️', color:'#6b7280' },
-  { id:'u7', login:'op3',    password:'1234', role:'operator',   name:'Jana Kučerová',    avatar:'⚙️', color:'#6b7280' },
+  { id:'u1', login:'jan',    email:'jan.novak@firma.cz',     password:'1234', role:'operator',   name:'Jan Novák',        avatar:'👷', color:'#6b7280', quals:['aoi','oprava_aoi','vystupni_kontrola'], defaultStation:5 },
+  { id:'u2', login:'tpv',    email:'petr.dvorak@firma.cz',    password:'1234', role:'tpv',        name:'Petr Dvořák',      avatar:'📐', color:'#a855f7', quals:[] },
+  { id:'u3', login:'mistr',  email:'martin.svoboda@firma.cz', password:'1234', role:'dispatcher', name:'Martin Svoboda',   avatar:'👷', color:'#3b82f6', quals:[] },
+  { id:'u4', login:'vedeni', email:'eva.kralova@firma.cz',    password:'1234', role:'management', name:'Eva Králová',      avatar:'📊', color:'#22c55e', quals:[] },
+  { id:'u5', login:'admin',  email:'admin@firma.cz',          password:'1234', role:'admin',      name:'IT Admin',         avatar:'🔧', color:'#ef4444', quals:[] },
+  { id:'u6', login:'lucie',  email:'lucie@firma.cz',          password:'1234', role:'operator',   name:'Lucie Bláhová',    avatar:'⚙️', color:'#6b7280', quals:['automat','osazovani','pajeni_vlna'], defaultStation:2 },
+  { id:'u7', login:'karel',  email:'karel@firma.cz',          password:'1234', role:'operator',   name:'Karel Malý',       avatar:'📦', color:'#6b7280', quals:['baleni','vystupni_kontrola'], defaultStation:13 },
 ];
 
 const ROLE_LABELS = { admin:'Admin', dispatcher:'Mistr', tpv:'TPV', management:'Vedení', operator:'Operátor' };
@@ -457,27 +457,49 @@ let APP_SETTINGS = {
 
 // ── STATIONS ──────────────────────────────────────────
 const STATIONS = [
-  { id:1,  name:'Sklad',            icon:'📦' },
-  { id:2,  name:'Automat',          icon:'🤖' },
-  { id:3,  name:'Montáž THT',       icon:'🔩' },
-  { id:4,  name:'Pájení přetavením',icon:'🔥' },
-  { id:5,  name:'AOI',              icon:'🔍' },
-  { id:6,  name:'RTG',              icon:'☢️' },
-  { id:7,  name:'Pájení vlna',      icon:'🌊' },
-  { id:8,  name:'Ruční pájení',     icon:'✏️' },
-  { id:9,  name:'Opravy',           icon:'🛠️' },
-  { id:10, name:'Programování',     icon:'💻' },
-  { id:11, name:'Lakování',         icon:'🎨' },
-  { id:12, name:'Výstupní kontrola',icon:'✅' },
-  { id:13, name:'Balení',           icon:'📫' },
+  { id:1,  name:'Sklad',            icon:'📦', qual:'sklad' },
+  { id:2,  name:'Automaty',         icon:'🤖', qual:'automat' },
+  { id:3,  name:'Montáž THT',       icon:'🔩', qual:'osazovani' },
+  { id:4,  name:'Pájení přetavením',icon:'🔥', qual:'pajeni_pretaveni' },
+  { id:5,  name:'AOI kontrola',     icon:'🔍', qual:'aoi' },
+  { id:6,  name:'RTG',              icon:'☢️', qual:'rtg' },
+  { id:7,  name:'Pájení vlnou',     icon:'🌊', qual:'pajeni_vlna' },
+  { id:8,  name:'Ruční pájení',     icon:'✏️', qual:'pajeni_rucni' },
+  { id:9,  name:'Oprava po AOI',    icon:'🛠️', qual:'oprava_aoi' },
+  { id:10, name:'Programování',     icon:'💻', qual:'programovani' },
+  { id:11, name:'Lakování',         icon:'🎨', qual:'lakovani' },
+  { id:12, name:'Výstupní kontrola',icon:'✅', qual:'vystupni_kontrola' },
+  { id:13, name:'Balení',           icon:'📫', qual:'baleni' },
 ];
 
+const AUTOMATS = ['Alfa', 'Beta', 'Gama', 'Delta', 'Eta', 'Theta'];
+
+function checklistForStation(stId) {
+  const custom = {
+    1: ['Materiál vychystán', 'Šarže zkontrolována', 'Materiál předán dál'],
+    2: ['Program automatu zapsán', 'První kus zkontrolován', 'RTG kontrola provedena', 'Počty zapsané'],
+    5: ['AOI program spuštěn', 'Podezřelé kusy odděleny', 'Výsledek zapsán'],
+    7: ['Program vlny ověřen', 'Teplota a flux OK', 'Vzorek po pájení zkontrolován'],
+    13: ['Štítek vytištěn', 'Počet balení sedí', 'Zakázka připravena k expedici'],
+  };
+  return custom[stId] || ['Pracovní instrukce přečtena', 'Kontrola prvního kusu', 'Počty zapsané'];
+}
+
 // ── REPORTED ISSUES (visible to all users) ───────────
-let ISSUES = [];   // { id, orderId, stationId, severity, description, reportedBy, reportedAt, resolved }
+let ISSUES = [
+  { id:'iss-hc3-aoi', orderId:'hc3', orderName:'RB-004 · Snímač', orderNumber:'260315',
+    stationId:5, stationName:'AOI kontrola', stationIcon:'🔍', severity:'high',
+    description:'AOI hlásí nesprávné pájení R12 - zastaveno.',
+    reportedBy:'Jan Novák', reportedByRole:'operator',
+    reportedAt:new Date(Date.now()-3600000*5).toISOString(), resolved:false },
+];   // { id, orderId, stationId, severity, description, reportedBy, reportedAt, resolved }
 
 // ── PRODUCTION NOTES (visible to all users) ──────────
 // type: 'info' | 'storage' | 'material' | 'change' | 'other'
 let PROD_NOTES = [
+  { id:'pn0', orderId:'hc3', stationId:5, type:'change',
+    text:'AOI hlásí nesprávné pájení R12 - zastaveno, čeká se na rozhodnutí mistra.',
+    author:'Jan Novák', authorRole:'operator', createdAt:new Date(Date.now()-3600000*5).toISOString() },
   { id:'pn1', orderId:'o1', stationId:3, type:'storage',
     text:'Polotovary uloženy v sušce – budova C, regál 4.',
     author:'Marie Horáčková', authorRole:'operator', createdAt:new Date(Date.now()-3600000*4).toISOString() },
@@ -490,7 +512,45 @@ let PROD_NOTES = [
 // Číslo zakázky = 6místný kód (auto-increment od 261100)
 let NEXT_ORDER_CODE = 261104;
 let ORDERS = [
-  { id:'o1', number:'261100', name:'Řídicí deska VB-300', priority:'urgent', qty:150, customer:'HC Electronics a.s.', due:'2025-05-15',
+  { id:'hc1', number:'260321', name:'PCB-A-007 · Řídicí deska', productCode:'PCB-A-007', priority:'urgent', qty:1000, customer:'Siemens', due:'2026-04-27', technology:'BEZOLOVO', stencilNumber:'PL-1427', automat:'Alfa', automatProgram:'',
+    stations: [
+      { stId:1, status:'completed', qtyOk:1000, qtyRework:0, qtyScrap:0, qtyReceived:1000 },
+      { stId:2, status:'in_progress', qtyOk:800, qtyRework:0, qtyScrap:0, qtyReceived:1000, checklist:[false,false,false,false] },
+      { stId:5, status:'in_progress', qtyOk:200, qtyRework:5, qtyScrap:0, qtyReceived:800 },
+      { stId:6, status:'skipped', qtyOk:0, qtyRework:0, qtyScrap:0, qtyReceived:0 },
+      { stId:9, status:'in_progress', qtyOk:0, qtyRework:0, qtyScrap:0, qtyReceived:5 },
+      { stId:3, status:'in_progress', qtyOk:50, qtyRework:0, qtyScrap:0, qtyReceived:195 },
+      { stId:7, status:'waiting', qtyOk:0, qtyRework:0, qtyScrap:0, qtyReceived:50 },
+      { stId:8, status:'waiting', qtyOk:0, qtyRework:0, qtyScrap:0, qtyReceived:0 },
+      { stId:12,status:'waiting', qtyOk:0, qtyRework:0, qtyScrap:0, qtyReceived:0 },
+      { stId:13,status:'waiting', qtyOk:0, qtyRework:0, qtyScrap:0, qtyReceived:0 },
+    ]
+  },
+  { id:'hc2', number:'260318', name:'MB-012 · Napájecí zdroj', productCode:'MB-012', priority:'normal', qty:500, customer:'Bosch', due:'2026-04-25', technology:'OLOVO', stencilNumber:'', automat:'Beta', automatProgram:'',
+    stations: [
+      { stId:1, status:'completed', qtyOk:500, qtyRework:0, qtyScrap:0, qtyReceived:500 },
+      { stId:2, status:'in_progress', qtyOk:100, qtyRework:0, qtyScrap:0, qtyReceived:500, checklist:[false,false,false,false] },
+      { stId:5, status:'waiting', qtyOk:0, qtyRework:0, qtyScrap:0, qtyReceived:100 },
+      { stId:6, status:'waiting', qtyOk:0, qtyRework:0, qtyScrap:0, qtyReceived:0 },
+      { stId:9, status:'waiting', qtyOk:0, qtyRework:0, qtyScrap:0, qtyReceived:0 },
+      { stId:3, status:'waiting', qtyOk:0, qtyRework:0, qtyScrap:0, qtyReceived:0 },
+      { stId:7, status:'waiting', qtyOk:0, qtyRework:0, qtyScrap:0, qtyReceived:0 },
+      { stId:8, status:'waiting', qtyOk:0, qtyRework:0, qtyScrap:0, qtyReceived:0 },
+      { stId:12,status:'waiting', qtyOk:0, qtyRework:0, qtyScrap:0, qtyReceived:0 },
+      { stId:13,status:'waiting', qtyOk:0, qtyRework:0, qtyScrap:0, qtyReceived:0 },
+    ]
+  },
+  { id:'hc3', number:'260315', name:'RB-004 · Snímač', productCode:'RB-004', priority:'high', qty:200, customer:'ABB', due:'2026-04-22', technology:'BEZOLOVO', stencilNumber:'PL-004D', automat:'Theta', automatProgram:'',
+    stations: [
+      { stId:1, status:'completed', qtyOk:200, qtyRework:0, qtyScrap:0, qtyReceived:200 },
+      { stId:2, status:'completed', qtyOk:200, qtyRework:0, qtyScrap:0, qtyReceived:200, checklist:[true,true,true,true] },
+      { stId:5, status:'issue', qtyOk:80, qtyRework:15, qtyScrap:5, qtyReceived:200 },
+      { stId:3, status:'waiting', qtyOk:0, qtyRework:0, qtyScrap:0, qtyReceived:80 },
+      { stId:12,status:'waiting', qtyOk:0, qtyRework:0, qtyScrap:0, qtyReceived:0 },
+      { stId:13,status:'waiting', qtyOk:0, qtyRework:0, qtyScrap:0, qtyReceived:0 },
+    ]
+  },
+  { id:'o1', number:'261100', name:'Řídicí deska VB-300', priority:'urgent', qty:150, customer:'HC Electronics a.s.', due:'2025-05-15', technology:'BEZOLOVO', stencilNumber:'PL-300',
     stations: [
       { stId:1, status:'completed', qtyOk:150, qtyRework:0, qtyScrap:0, qtyReceived:150 },
       { stId:2, status:'completed', qtyOk:148, qtyRework:2, qtyScrap:0, qtyReceived:150 },
@@ -541,11 +601,31 @@ let numpadValue = '';
 let numpadCallback = null;
 let numpadField = null;
 
+normalizeDemoData();
+
+function normalizeDemoData() {
+  ORDERS.forEach(order => {
+    order.automatProgram ??= '';
+    order.stations.forEach(st => {
+      st.qtyOk = Math.max(0, Number(st.qtyOk) || 0);
+      st.qtyRework = Math.max(0, Number(st.qtyRework) || 0);
+      st.qtyScrap = Math.max(0, Number(st.qtyScrap) || 0);
+      st.qtyReceived = Math.max(0, Number(st.qtyReceived) || 0);
+      const checklist = checklistForStation(st.stId);
+      st.checklist = Array.from({ length: checklist.length }, (_, i) => !!st.checklist?.[i]);
+      const available = st.qtyReceived > 0 ? st.qtyReceived : order.qty;
+      st.qtyOk = Math.min(st.qtyOk, available);
+      st.qtyRework = Math.min(st.qtyRework, Math.max(0, available - st.qtyOk));
+      st.qtyScrap = Math.min(st.qtyScrap, Math.max(0, available - st.qtyOk - st.qtyRework));
+    });
+  });
+}
+
 // ── LOGIN / LOGOUT ─────────────────────────────────────
 function doLogin() {
   const u = document.getElementById('login-user').value.trim().toLowerCase();
   const p = document.getElementById('login-pass').value;
-  const found = USERS.find(x => x.login === u && x.password === p);
+  const found = USERS.find(x => (x.login === u || x.email?.toLowerCase() === u) && x.password === p);
   if (!found) {
     document.getElementById('login-error').textContent = 'Nesprávné přihlašovací jméno nebo heslo.';
     return;
@@ -582,6 +662,17 @@ function can(action) {
     app_settings:   ['admin'],
   };
   return perms[action]?.includes(r) ?? false;
+}
+
+function canOperateStation(stId) {
+  const st = STATIONS.find(x => x.id === Number(stId));
+  if (!currentUser || currentUser.role !== 'operator') return true;
+  return !st?.qual || currentUser.quals?.includes(st.qual);
+}
+
+function canEditAutomatProgram() {
+  return ['dispatcher','management','admin'].includes(currentUser?.role) ||
+    (currentUser?.role === 'operator' && currentUser.quals?.includes('automat'));
 }
 
 // ── INIT ──────────────────────────────────────────────
@@ -1020,6 +1111,8 @@ function renderStationDetail(stInfo) {
       <span class="badge ${statusClass}" style="margin-left:auto">${statusLbl}</span>
     </div>
 
+    ${stationExtraHtml(stInfo)}
+
     <!-- QTY -->
     <div class="card">
       <div class="card-title">📦 Počty kusů</div>
@@ -1061,6 +1154,12 @@ function renderStationDetail(stInfo) {
       ${renderStationNotes()}
     </div>
 
+    <!-- CHECKLIST -->
+    <div class="card">
+      <div class="card-title">☑️ Checklist</div>
+      ${checklistHtml()}
+    </div>
+
     <!-- FORWARD -->
     ${s.qtyOk > 0 ? `<div class="card">
       <div class="card-title">→ Předat dál</div>
@@ -1075,11 +1174,61 @@ function renderStationDetail(stInfo) {
   updateQtySummary();
 }
 
+function stationExtraHtml(stInfo) {
+  if (selectedStation.stId !== 2) return '';
+  const programEditable = canEditAutomatProgram();
+  return `<div class="card">
+    <div class="card-title">🤖 Automat a program</div>
+    <div class="input-group">
+      <div class="input-label">Automat</div>
+      <select class="input" onchange="selectedOrder.automat=this.value;showToast('Automat uložen')">
+        ${AUTOMATS.map(a => `<option value="${a}" ${selectedOrder.automat===a?'selected':''}>${a}</option>`).join('')}
+      </select>
+    </div>
+    <div class="input-group">
+      <div class="input-label">Název programu pro automaty</div>
+      <input class="input" value="${escapeHtml(selectedOrder.automatProgram || '')}"
+        placeholder="např. GAMA-PBA007-B"
+        ${programEditable ? '' : 'disabled'}
+        oninput="selectedOrder.automatProgram=this.value">
+      <div style="font-size:11px;color:var(--text3);margin-top:5px">
+        ${programEditable
+          ? 'Upravit může operátor automatu, mistr, vedení nebo admin.'
+          : 'Nemáte oprávnění měnit program automatu.'}
+      </div>
+    </div>
+  </div>`;
+}
+
+function checklistHtml() {
+  const items = checklistForStation(selectedStation.stId);
+  selectedStation.checklist = Array.from({ length: items.length }, (_, i) => !!selectedStation.checklist?.[i]);
+  return items.map((item, index) => `
+    <div style="display:flex;align-items:center;gap:10px;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:11px 12px;margin-bottom:8px;cursor:pointer"
+      onclick="toggleChecklist(${index})">
+      <span style="font-size:20px;color:${selectedStation.checklist[index] ? 'var(--green)' : 'var(--text3)'}">
+        ${selectedStation.checklist[index] ? '☑' : '☐'}
+      </span>
+      <span style="font-size:13px;color:${selectedStation.checklist[index] ? 'var(--green)' : 'var(--text)'};${selectedStation.checklist[index] ? 'text-decoration:line-through' : ''}">
+        ${item}
+      </span>
+    </div>
+  `).join('');
+}
+
+function toggleChecklist(index) {
+  if (!selectedStation) return;
+  selectedStation.checklist[index] = !selectedStation.checklist[index];
+  const stInfo = STATIONS.find(x => x.id === selectedStation.stId);
+  renderStationDetail(stInfo);
+}
+
 function qtyFieldHtml(field, label, val, colorClass) {
+  const max = qtyMaxForField(field);
   return `<div class="qty-field" onclick="openNumpad('${field}','${label}',${val})" id="qtf-${field}">
     <div class="qty-field-label" style="color:var(--text2)">${label}</div>
     <div class="qty-field-val ${colorClass}" id="qtv-${field}">${val}</div>
-    <div style="font-size:9px;color:var(--text3);margin-top:3px">klikni pro zadání</div>
+    <div style="font-size:9px;color:var(--text3);margin-top:3px">max ${max} · klikni pro zadání</div>
   </div>`;
 }
 
@@ -1093,6 +1242,20 @@ function qtyValidation() {
   const sum = (s.qtyOk||0) + (s.qtyRework||0) + (s.qtyScrap||0);
   const available = qtyAvailable();
   return { sum, available, exceed: sum > available, remaining: available - sum };
+}
+
+function qtyMaxForField(field) {
+  if (!selectedStation) return 0;
+  const available = qtyAvailable();
+  const other =
+    (field === 'ok' ? 0 : selectedStation.qtyOk || 0) +
+    (field === 'rework' ? 0 : selectedStation.qtyRework || 0) +
+    (field === 'scrap' ? 0 : selectedStation.qtyScrap || 0);
+  return Math.max(0, available - other);
+}
+
+function capQtyForField(field, value) {
+  return Math.min(Math.max(0, Number(value) || 0), qtyMaxForField(field));
 }
 
 function updateQtySummary() {
@@ -1414,24 +1577,19 @@ function numDelete() {
 
 function numConfirm() {
   if (!selectedStation || !numpadField) { closeNumpad(); return; }
-  const val = parseInt(numpadValue, 10) || 0;
+  const requested = parseInt(numpadValue, 10) || 0;
+  const val = capQtyForField(numpadField, requested);
   const fieldMap = { ok:'qtyOk', rework:'qtyRework', scrap:'qtyScrap' };
 
-  // Validace: pole samotné nesmí překročit dostupné množství
-  const available = qtyAvailable();
-  if (val > available) {
-    showToast(`⛔ Nelze: ${val} > ${available} ks vydaných`);
-    return;
-  }
-
   selectedStation[fieldMap[numpadField]] = val;
-  const valEl = document.getElementById('qtv-' + numpadField);
-  if (valEl) valEl.textContent = val;
   closeNumpad();
-  updateQtySummary();
+  const stInfo = STATIONS.find(x => x.id === selectedStation.stId);
+  renderStationDetail(stInfo);
   const v = qtyValidation();
   if (v.exceed) {
     showToast(`⚠️ Pozor: součet ${v.sum} přesahuje ${v.available} ks!`);
+  } else if (val !== requested) {
+    showToast(`Hodnota omezena na ${val} ks podle doručených kusů`);
   } else {
     showToast(`${numpadField === 'ok' ? 'OK' : numpadField === 'rework' ? 'Oprava' : 'Zmetek'}: ${val} ks`);
   }
