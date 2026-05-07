@@ -457,19 +457,15 @@ let APP_SETTINGS = {
 
 // ── STATIONS ──────────────────────────────────────────
 const STATIONS = [
-  { id:1,  name:'Sklad',            icon:'📦' },
-  { id:2,  name:'Automat',          icon:'🤖' },
-  { id:3,  name:'Montáž THT',       icon:'🔩' },
-  { id:4,  name:'Pájení přetavením',icon:'🔥' },
-  { id:5,  name:'AOI',              icon:'🔍' },
-  { id:6,  name:'RTG',              icon:'☢️' },
-  { id:7,  name:'Pájení vlna',      icon:'🌊' },
-  { id:8,  name:'Ruční pájení',     icon:'✏️' },
-  { id:9,  name:'Opravy',           icon:'🛠️' },
-  { id:10, name:'Programování',     icon:'💻' },
-  { id:11, name:'Lakování',         icon:'🎨' },
-  { id:12, name:'Výstupní kontrola',icon:'✅' },
-  { id:13, name:'Balení',           icon:'📫' },
+  { id:1, name:'Sklad',                       icon:'📦' },
+  { id:2, name:'Automat',                     icon:'🤖' },
+  { id:3, name:'AOI',                         icon:'🔍' },
+  { id:4, name:'RTG',                         icon:'☢️' },
+  { id:5, name:'Montáž THT',                  icon:'🔩' },
+  { id:6, name:'Pájení vlnou / selektivní',   icon:'🌊' },
+  { id:7, name:'Oprava po pájení',            icon:'🛠️' },
+  { id:8, name:'Výstupní kontrola',           icon:'✅' },
+  { id:9, name:'Balení',                      icon:'📫' },
 ];
 
 // ── REPORTED ISSUES (visible to all users) ───────────
@@ -478,7 +474,7 @@ let ISSUES = [];   // { id, orderId, stationId, severity, description, reportedB
 // ── PRODUCTION NOTES (visible to all users) ──────────
 // type: 'info' | 'storage' | 'material' | 'change' | 'other'
 let PROD_NOTES = [
-  { id:'pn1', orderId:'o1', stationId:3, type:'storage',
+  { id:'pn1', orderId:'o1', stationId:5, type:'storage',
     text:'Polotovary uloženy v sušce – budova C, regál 4.',
     author:'Marie Horáčková', authorRole:'operator', createdAt:new Date(Date.now()-3600000*4).toISOString() },
   { id:'pn2', orderId:'o2', stationId:2, type:'material',
@@ -490,42 +486,63 @@ let PROD_NOTES = [
 // Číslo zakázky = 6místný kód (auto-increment od 261100)
 let NEXT_ORDER_CODE = 261104;
 let ORDERS = [
-  { id:'o1', number:'261100', name:'Řídicí deska VB-300', priority:'urgent', qty:150, customer:'HC Electronics a.s.', due:'2025-05-15',
+  { id:'o1', number:'261100', name:'Řídicí deska VB-300', priority:'urgent', qty:150,
+    customer:'HC Electronics a.s.', due:'2025-05-15',
+    orderDate:'2025-05-01', technology:'bezolovo', productionType:'repeat',
+    stencilNumber:'PL-VB300-R3', documents:[
+      {name:'BOM_VB300_v3.xlsx', type:'bom',     size:48000},
+      {name:'OSAZ_VB300.pdf',    type:'drawing', size:120000},
+    ],
     stations: [
-      { stId:1, status:'completed', qtyOk:150, qtyRework:0, qtyScrap:0, qtyReceived:150 },
-      { stId:2, status:'completed', qtyOk:148, qtyRework:2, qtyScrap:0, qtyReceived:150 },
-      { stId:3, status:'in_progress', qtyOk:80, qtyRework:5, qtyScrap:1, qtyReceived:148 },
-      { stId:4, status:'waiting', qtyOk:0, qtyRework:0, qtyScrap:0, qtyReceived:0 },
-      { stId:5, status:'waiting', qtyOk:0, qtyRework:0, qtyScrap:0, qtyReceived:0 },
-      { stId:12,status:'waiting', qtyOk:0, qtyRework:0, qtyScrap:0, qtyReceived:0 },
-      { stId:13,status:'waiting', qtyOk:0, qtyRework:0, qtyScrap:0, qtyReceived:0 },
+      { stId:1, status:'completed',  qtyOk:150, qtyRework:0, qtyScrap:0, qtyReceived:150 },
+      { stId:2, status:'completed',  qtyOk:148, qtyRework:2, qtyScrap:0, qtyReceived:150 },
+      { stId:3, status:'waiting',    qtyOk:0,   qtyRework:0, qtyScrap:0, qtyReceived:0 },
+      { stId:4, status:'waiting',    qtyOk:0,   qtyRework:0, qtyScrap:0, qtyReceived:0 },
+      { stId:5, status:'in_progress',qtyOk:80,  qtyRework:5, qtyScrap:1, qtyReceived:148 },
+      { stId:6, status:'waiting',    qtyOk:0,   qtyRework:0, qtyScrap:0, qtyReceived:0 },
+      { stId:7, status:'waiting',    qtyOk:0,   qtyRework:0, qtyScrap:0, qtyReceived:0 },
+      { stId:8, status:'waiting',    qtyOk:0,   qtyRework:0, qtyScrap:0, qtyReceived:0 },
+      { stId:9, status:'waiting',    qtyOk:0,   qtyRework:0, qtyScrap:0, qtyReceived:0 },
     ]
   },
-  { id:'o2', number:'261101', name:'Napájecí modul PM-24V', priority:'high', qty:300, customer:'TechCorp s.r.o.', due:'2025-05-20',
+  { id:'o2', number:'261101', name:'Napájecí modul PM-24V', priority:'high', qty:300,
+    customer:'TechCorp s.r.o.', due:'2025-05-20',
+    orderDate:'2025-05-02', technology:'bezolovo', productionType:'new',
+    stencilNumber:'PL-PM24-001', documents:[{name:'BOM_PM24V.xlsx', type:'bom', size:32000}],
     stations: [
-      { stId:1, status:'completed', qtyOk:300, qtyRework:0, qtyScrap:0, qtyReceived:300 },
+      { stId:1, status:'completed',   qtyOk:300, qtyRework:0,  qtyScrap:0, qtyReceived:300 },
       { stId:2, status:'in_progress', qtyOk:200, qtyRework:10, qtyScrap:2, qtyReceived:300 },
-      { stId:4, status:'waiting', qtyOk:0, qtyRework:0, qtyScrap:0, qtyReceived:0 },
-      { stId:7, status:'waiting', qtyOk:0, qtyRework:0, qtyScrap:0, qtyReceived:0 },
-      { stId:12,status:'waiting', qtyOk:0, qtyRework:0, qtyScrap:0, qtyReceived:0 },
+      { stId:3, status:'waiting',     qtyOk:0,   qtyRework:0,  qtyScrap:0, qtyReceived:0 },
+      { stId:6, status:'waiting',     qtyOk:0,   qtyRework:0,  qtyScrap:0, qtyReceived:0 },
+      { stId:8, status:'waiting',     qtyOk:0,   qtyRework:0,  qtyScrap:0, qtyReceived:0 },
+      { stId:9, status:'waiting',     qtyOk:0,   qtyRework:0,  qtyScrap:0, qtyReceived:0 },
     ]
   },
-  { id:'o3', number:'261102', name:'Senzorická PCB SR-10', priority:'normal', qty:500, customer:'AutoElektro k.s.', due:'2025-06-01',
+  { id:'o3', number:'261102', name:'Senzorická PCB SR-10', priority:'normal', qty:500,
+    customer:'AutoElektro k.s.', due:'2025-06-01',
+    orderDate:'2025-05-03', technology:'olovo', productionType:'revision',
+    stencilNumber:'PL-SR10-R2', documents:[],
     stations: [
-      { stId:1, status:'completed', qtyOk:500, qtyRework:0, qtyScrap:0, qtyReceived:500 },
-      { stId:2, status:'completed', qtyOk:495, qtyRework:5, qtyScrap:0, qtyReceived:500 },
-      { stId:3, status:'completed', qtyOk:490, qtyRework:10, qtyScrap:5, qtyReceived:495 },
-      { stId:4, status:'issue',     qtyOk:200, qtyRework:20, qtyScrap:10, qtyReceived:490 },
-      { stId:5, status:'waiting',   qtyOk:0, qtyRework:0, qtyScrap:0, qtyReceived:0 },
-      { stId:12,status:'waiting',   qtyOk:0, qtyRework:0, qtyScrap:0, qtyReceived:0 },
+      { stId:1, status:'completed', qtyOk:500, qtyRework:0,  qtyScrap:0,  qtyReceived:500 },
+      { stId:2, status:'completed', qtyOk:495, qtyRework:5,  qtyScrap:0,  qtyReceived:500 },
+      { stId:3, status:'completed', qtyOk:490, qtyRework:10, qtyScrap:5,  qtyReceived:495 },
+      { stId:5, status:'completed', qtyOk:480, qtyRework:8,  qtyScrap:2,  qtyReceived:490 },
+      { stId:6, status:'issue',     qtyOk:200, qtyRework:20, qtyScrap:10, qtyReceived:480 },
+      { stId:7, status:'waiting',   qtyOk:0,   qtyRework:0,  qtyScrap:0,  qtyReceived:0 },
+      { stId:8, status:'waiting',   qtyOk:0,   qtyRework:0,  qtyScrap:0,  qtyReceived:0 },
+      { stId:9, status:'waiting',   qtyOk:0,   qtyRework:0,  qtyScrap:0,  qtyReceived:0 },
     ]
   },
-  { id:'o4', number:'261103', name:'Komunikační modul CM-5G', priority:'low', qty:50, customer:'SmartHome a.s.', due:'2025-06-10',
+  { id:'o4', number:'261103', name:'Komunikační modul CM-5G', priority:'low', qty:50,
+    customer:'SmartHome a.s.', due:'2025-06-10',
+    orderDate:'2025-05-05', technology:'bezolovo', productionType:'new',
+    stencilNumber:'', documents:[],
     stations: [
-      { stId:1,  status:'waiting', qtyOk:0, qtyRework:0, qtyScrap:0, qtyReceived:0 },
-      { stId:2,  status:'waiting', qtyOk:0, qtyRework:0, qtyScrap:0, qtyReceived:0 },
-      { stId:10, status:'waiting', qtyOk:0, qtyRework:0, qtyScrap:0, qtyReceived:0 },
-      { stId:12, status:'waiting', qtyOk:0, qtyRework:0, qtyScrap:0, qtyReceived:0 },
+      { stId:1, status:'waiting', qtyOk:0, qtyRework:0, qtyScrap:0, qtyReceived:0 },
+      { stId:2, status:'waiting', qtyOk:0, qtyRework:0, qtyScrap:0, qtyReceived:0 },
+      { stId:5, status:'waiting', qtyOk:0, qtyRework:0, qtyScrap:0, qtyReceived:0 },
+      { stId:8, status:'waiting', qtyOk:0, qtyRework:0, qtyScrap:0, qtyReceived:0 },
+      { stId:9, status:'waiting', qtyOk:0, qtyRework:0, qtyScrap:0, qtyReceived:0 },
     ]
   },
 ];
@@ -628,6 +645,9 @@ function buildNav() {
 }
 
 function navigateTo(page) {
+  // Při přechodu pryč ze stránky zakázek (mimo přes showOrdersFiltered) zruš filtr
+  if (currentPage === 'orders' && page !== 'orders') orderFilter = null;
+
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.navtab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.bn-item').forEach(t => t.classList.remove('active'));
@@ -748,19 +768,19 @@ function renderDashboard() {
     <div class="divider"></div>
 
     <div class="stat-grid">
-      <div class="stat-card">
+      <div class="stat-card" style="cursor:pointer" onclick="showOrdersFiltered(null)">
         <div class="stat-val">${total}</div>
         <div class="stat-lbl">Zakázek celkem</div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card" style="cursor:pointer" onclick="showOrdersFiltered('in_progress')">
         <div class="stat-val" style="color:var(--blue)">${inProg}</div>
         <div class="stat-lbl">Ve výrobě</div>
       </div>
-      <div class="stat-card">
-        <div class="stat-val" style="color:var(--red)">${issues}</div>
+      <div class="stat-card" style="cursor:pointer" onclick="navigateTo('issues')">
+        <div class="stat-val" style="color:var(--red)">${ISSUES.filter(i=>!i.resolved).length || issues}</div>
         <div class="stat-lbl">Problémy</div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card" style="cursor:pointer" onclick="showOrdersFiltered('urgent')">
         <div class="stat-val" style="color:var(--amber)">${urgent}</div>
         <div class="stat-lbl">Urgentní</div>
       </div>
@@ -817,17 +837,30 @@ function renderDashboard() {
 
 // ── ORDERS LIST ───────────────────────────────────────
 let orderSearch = '';
+let orderFilter = null; // 'in_progress' | 'urgent' | null
 
 function filterOrders(q) {
-  if (!q) return [...ORDERS].sort((a,b) => a.number.localeCompare(b.number));
-  const s = q.toLowerCase().trim();
-  return ORDERS
-    .filter(o =>
+  let list = [...ORDERS];
+  if (orderFilter === 'in_progress') {
+    list = list.filter(o => o.stations.some(s => s.status === 'in_progress'));
+  } else if (orderFilter === 'urgent') {
+    list = list.filter(o => o.priority === 'urgent');
+  }
+  if (q) {
+    const s = q.toLowerCase().trim();
+    list = list.filter(o =>
       o.number.includes(s) ||
       (o.name||'').toLowerCase().includes(s) ||
       (o.customer||'').toLowerCase().includes(s)
-    )
-    .sort((a,b) => a.number.localeCompare(b.number));
+    );
+  }
+  return list.sort((a,b) => a.number.localeCompare(b.number));
+}
+
+function showOrdersFiltered(filter) {
+  orderFilter = filter;
+  orderSearch = '';
+  navigateTo('orders');
 }
 
 function renderOrders() {
@@ -846,8 +879,16 @@ function renderOrders() {
           oninput="orderSearch=this.value;document.getElementById('ord-list').innerHTML=ordersListHtml(filterOrders(orderSearch))">
         ${orderSearch ? `<button class="btn btn-ghost btn-sm" onclick="orderSearch='';renderOrders()">✕</button>`:''}
       </div>
+      ${orderFilter ? `
+        <div style="display:flex;align-items:center;gap:6px;margin-top:8px">
+          <span style="font-size:11px;color:var(--text2)">Filtr:</span>
+          <span class="badge ${orderFilter==='urgent'?'badge-urgent':'badge-progress'}" style="display:inline-flex;align-items:center;gap:6px">
+            ${orderFilter==='urgent'?'🔥 Urgentní':'⚙️ Ve výrobě'}
+            <span style="cursor:pointer;font-weight:900" onclick="orderFilter=null;renderOrders()">✕</span>
+          </span>
+        </div>` : ''}
       <div style="font-size:11px;color:var(--text3);margin-top:6px">
-        ${list.length} ${list.length===1?'zakázka':list.length<5?'zakázky':'zakázek'} ${orderSearch?'(filtrováno)':''}
+        ${list.length} ${list.length===1?'zakázka':list.length<5?'zakázky':'zakázek'} ${(orderSearch||orderFilter)?'(filtrováno)':''}
       </div>
     </div>
 
@@ -945,7 +986,13 @@ function openOrder(orderId) {
       </div>
     </div>
 
-    <div class="section-title">Stanoviště výroby</div>
+    ${orderInfoCardHtml(selectedOrder)}
+    ${orderDocsCardHtml(selectedOrder)}
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin:16px 0 8px">
+      <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:1px">Stanoviště výroby</div>
+      ${can('create_order') ? `<button class="btn btn-ghost btn-sm" onclick="manageStationsModal('${selectedOrder.id}')">⚙️ Spravovat</button>` : ''}
+    </div>
     ${selectedOrder.stations.map(s => {
       const stInfo = STATIONS.find(x => x.id === s.stId);
       const statusClass = {
@@ -979,6 +1026,166 @@ function openOrder(orderId) {
       </div>`;
     }).join('')}
   `;
+}
+
+function orderInfoCardHtml(o) {
+  const pt = PROD_TYPES[o.productionType] || PROD_TYPES.new;
+  const techColor = o.technology === 'olovo' ? '#a16207' : '#d4a017';
+  const techLabel = o.technology === 'olovo' ? '🔧 OLOVO' : '⚡ BEZOLOVO';
+  return `<div class="card">
+    <div class="card-title">📋 Údaje o zakázce</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px">
+      <div>
+        <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px">Datum objednání</div>
+        <div style="font-size:13px;color:var(--text);font-weight:600;margin-top:2px">${formatDate(o.orderDate || '')}</div>
+      </div>
+      <div>
+        <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px">Termín dodání</div>
+        <div style="font-size:13px;color:var(--text);font-weight:600;margin-top:2px">${formatDate(o.due || '')}</div>
+      </div>
+      <div>
+        <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px">Technologie</div>
+        <div style="font-size:13px;color:${techColor};font-weight:700;margin-top:2px">${techLabel}</div>
+      </div>
+      <div>
+        <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px">Typ výroby</div>
+        <div style="font-size:13px;color:${pt.color};font-weight:700;margin-top:2px">${pt.icon} ${pt.label}</div>
+      </div>
+      ${o.stencilNumber ? `<div style="grid-column:span 2">
+        <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px">Číslo planžety</div>
+        <div style="font-size:13px;color:var(--gold);font-weight:700;font-family:'SF Mono',Menlo,monospace;margin-top:2px">${escapeHtml(o.stencilNumber)}</div>
+      </div>` : ''}
+    </div>
+  </div>`;
+}
+
+function orderDocsCardHtml(o) {
+  const docs = o.documents || [];
+  return `<div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div class="card-title" style="margin:0">📎 Dokumenty (${docs.length})</div>
+      ${can('create_order') ? `<button class="btn btn-teal btn-sm" onclick="addDocToOrder('${o.id}')">+ Nahrát</button>` : ''}
+    </div>
+    ${docs.length === 0
+      ? `<div style="color:var(--text3);font-size:12px;text-align:center;padding:10px 0">Žádné dokumenty</div>`
+      : docs.map((d,i) => `
+        <div style="display:flex;align-items:center;gap:10px;background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:6px">
+          <span style="font-size:18px">${docIcon(d.type)}</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;color:var(--text);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(d.name)}</div>
+            <div style="font-size:10px;color:var(--text2)">${docTypeLabel(d.type)} · ${(d.size/1024).toFixed(0)} kB</div>
+          </div>
+          ${can('create_order')
+            ? `<button class="btn btn-ghost btn-sm" onclick="removeDoc('${o.id}',${i})">🗑️</button>` : ''}
+        </div>
+      `).join('')}
+  </div>`;
+}
+
+function addDocToOrder(orderId) {
+  const o = ORDERS.find(x => x.id === orderId);
+  if (!o) return;
+  openModal('Nahrát dokument', `
+    <div class="input-group">
+      <div class="input-label">Typ dokumentu</div>
+      <select class="input" id="ad-type">
+        <option value="bom">📊 BOM</option>
+        <option value="drawing">📐 Osazovací výkres</option>
+        <option value="paste">🎯 GBR data pasty</option>
+        <option value="other">📄 Ostatní</option>
+      </select>
+    </div>
+    <div class="input-group">
+      <div class="input-label">Soubor</div>
+      <input type="file" id="ad-file" class="input" style="padding:8px"
+        accept=".pdf,.xlsx,.xls,.csv,.zip,.gbr,.gbx,.txt,.docx,.dwg,image/*">
+    </div>
+  `, [
+    { label:'Zrušit', action:'closeModal()', cls:'btn-ghost' },
+    { label:'Nahrát', action:`saveDocToOrder('${orderId}')`, cls:'btn-primary' },
+  ]);
+}
+
+function saveDocToOrder(orderId) {
+  const f = document.getElementById('ad-file').files[0];
+  if (!f) { showToast('⚠️ Vyberte soubor'); return; }
+  const o = ORDERS.find(x => x.id === orderId);
+  if (!o) return;
+  o.documents = o.documents || [];
+  o.documents.push({ name:f.name, type:document.getElementById('ad-type').value, size:f.size });
+  closeModal();
+  openOrder(orderId);
+  showToast('✅ Dokument nahrán');
+}
+
+function manageStationsModal(orderId) {
+  const o = ORDERS.find(x => x.id === orderId);
+  if (!o) return;
+  openModal('⚙️ Spravovat stanoviště zakázky', `
+    <div style="font-size:12px;color:var(--text2);margin-bottom:12px">
+      Zapněte / vypněte stanoviště pro tuto zakázku. Vypnutá stanoviště se přeskočí.
+    </div>
+    <div id="ms-list">${renderManageStationsList(o)}</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:10px">
+      💡 Stanoviště, které již má rozpracované kusy, nejde vypnout.
+    </div>
+  `, [
+    { label:'Zavřít', action:'closeModal()', cls:'btn-ghost' },
+    { label:'Hotovo', action:`closeModal();openOrder('${orderId}')`, cls:'btn-primary' },
+  ]);
+}
+
+function renderManageStationsList(o) {
+  return STATIONS.map(st => {
+    const existing = o.stations.find(s => s.stId === st.id);
+    const sum = existing ? (existing.qtyOk + existing.qtyRework + existing.qtyScrap + existing.qtyReceived) : 0;
+    const hasProgress = sum > 0;
+    const on = !!existing && existing.status !== 'skipped';
+    return `<div style="display:flex;align-items:center;gap:10px;background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:6px">
+      <span style="font-size:18px">${st.icon}</span>
+      <span style="flex:1;font-size:13px;font-weight:600;color:${on?'var(--text)':'var(--text3)'}">${st.name}</span>
+      ${hasProgress ? `<span style="font-size:10px;color:var(--text2)">${existing.qtyOk} OK</span>` : ''}
+      <div class="toggle ${on?'on':''}" ${hasProgress && on ? 'title="Nelze vypnout – má rozpracované kusy" style="opacity:.4;cursor:not-allowed"' : `onclick="toggleOrderStation('${o.id}', ${st.id})"`}></div>
+    </div>`;
+  }).join('');
+}
+
+function toggleOrderStation(orderId, stId) {
+  const o = ORDERS.find(x => x.id === orderId);
+  if (!o) return;
+  const existing = o.stations.find(s => s.stId === stId);
+
+  if (existing) {
+    const sum = existing.qtyOk + existing.qtyRework + existing.qtyScrap + existing.qtyReceived;
+    if (sum > 0 && existing.status !== 'skipped') {
+      showToast('⚠️ Stanoviště má rozpracované kusy, nelze vypnout');
+      return;
+    }
+    if (existing.status === 'skipped') {
+      existing.status = 'waiting';
+      showToast('✅ Stanoviště zapnuto');
+    } else {
+      // odstranit pokud je úplně prázdné, jinak označit jako skipped
+      o.stations = o.stations.filter(s => s.stId !== stId);
+      showToast('🚫 Stanoviště vypnuto');
+    }
+  } else {
+    o.stations.push({
+      stId, status:'waiting', qtyOk:0, qtyRework:0, qtyScrap:0, qtyReceived:0,
+    });
+    o.stations.sort((a,b) => a.stId - b.stId);
+    showToast('➕ Stanoviště přidáno');
+  }
+
+  document.getElementById('ms-list').innerHTML = renderManageStationsList(o);
+}
+
+function removeDoc(orderId, idx) {
+  const o = ORDERS.find(x => x.id === orderId);
+  if (!o || !o.documents) return;
+  o.documents.splice(idx, 1);
+  openOrder(orderId);
+  showToast('🗑️ Dokument odebrán');
 }
 
 // ── STATION DETAIL ────────────────────────────────────
@@ -1660,25 +1867,68 @@ function closeModal() {
   document.getElementById('modal-overlay').classList.remove('visible');
 }
 
+// ── HISTORICKÉ ÚDAJE PRO AUTOCOMPLETE ────────────────
+function knownCustomers() {
+  return [...new Set(ORDERS.map(o => o.customer).filter(Boolean))].sort();
+}
+function knownProducts(customer) {
+  return [...new Set(
+    ORDERS.filter(o => !customer || o.customer === customer).map(o => o.name).filter(Boolean)
+  )].sort();
+}
+
+const PROD_TYPES = {
+  new:      { label:'Nová výroba',   icon:'🆕', color:'#22c55e' },
+  repeat:   { label:'Opakovaná',     icon:'🔁', color:'#3b82f6' },
+  revision: { label:'Revize výrobku',icon:'📝', color:'#f59e0b' },
+};
+
+let pendingDocs = [];   // dočasné dokumenty pro nový formulář
+const DEFAULT_STATIONS = [1,2,3,4,5,6,7,8,9];
+let pickedStations = DEFAULT_STATIONS.slice();
+
 function newOrderModal() {
+  pendingDocs = [];
+  pickedStations = DEFAULT_STATIONS.slice();
+  const today = new Date().toISOString().slice(0,10);
+
   openModal('Nová zakázka', `
-    <div style="background:var(--card2);border:1px solid var(--gold);border-radius:10px;padding:10px 12px;margin-bottom:14px;display:flex;align-items:center;gap:10px">
-      <div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px">Číslo zakázky</div>
-      <div style="font-size:20px;font-weight:800;color:var(--gold);font-family:'SF Mono',Menlo,monospace;letter-spacing:1.5px">${NEXT_ORDER_CODE}</div>
-      <div style="font-size:10px;color:var(--text3);margin-left:auto">přiřadí se automaticky</div>
+    <div style="background:var(--card2);border:1px solid var(--gold);border-radius:10px;padding:10px 12px;margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <div>
+        <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px">Číslo zakázky</div>
+        <div style="font-size:20px;font-weight:800;color:var(--gold);font-family:'SF Mono',Menlo,monospace;letter-spacing:1.5px">${NEXT_ORDER_CODE}</div>
+      </div>
+      <div style="margin-left:auto;text-align:right">
+        <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px">Datum objednání</div>
+        <div style="font-size:13px;color:var(--text);font-weight:600">${formatDate(today)} (dnes)</div>
+      </div>
     </div>
+
+    <datalist id="dl-customers">${knownCustomers().map(c=>`<option value="${c}">`).join('')}</datalist>
+    <datalist id="dl-products">${knownProducts().map(p=>`<option value="${p}">`).join('')}</datalist>
+
     <div class="input-group">
       <div class="input-label">Zákazník</div>
-      <input class="input" id="nm-customer" placeholder="HC Electronics a.s.">
+      <input class="input" id="nm-customer" list="dl-customers" placeholder="začněte psát…"
+        oninput="document.getElementById('dl-products').innerHTML = knownProducts(this.value).map(p=>'<option value=\\''+p+'\\'>').join('')">
     </div>
+
     <div class="input-group">
       <div class="input-label">Název výrobku</div>
-      <input class="input" id="nm-name" placeholder="např. Řídicí deska RD-100">
+      <input class="input" id="nm-name" list="dl-products" placeholder="např. Řídicí deska RD-100">
     </div>
-    <div class="input-group">
-      <div class="input-label">Počet kusů</div>
-      <input class="input" id="nm-qty" type="number" placeholder="100">
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="input-group">
+        <div class="input-label">Počet kusů</div>
+        <input class="input" id="nm-qty" type="number" min="1" placeholder="100">
+      </div>
+      <div class="input-group">
+        <div class="input-label">Termín dodání</div>
+        <input class="input" id="nm-due" type="date">
+      </div>
     </div>
+
     <div class="input-group">
       <div class="input-label">Priorita</div>
       <select class="input" id="nm-priority">
@@ -1688,33 +1938,191 @@ function newOrderModal() {
         <option value="urgent">Urgentní</option>
       </select>
     </div>
+
     <div class="input-group">
-      <div class="input-label">Termín</div>
-      <input class="input" id="nm-due" type="date">
+      <div class="input-label">Technologie pájení</div>
+      <div style="display:flex;gap:8px" id="nm-tech-row">
+        <button type="button" class="action-btn" data-tech="bezolovo" onclick="pickTech('bezolovo')"
+          style="flex:1;justify-content:center;border-color:var(--gold);color:var(--gold);background:rgba(212,160,23,.12)">⚡ BEZOLOVO</button>
+        <button type="button" class="action-btn" data-tech="olovo" onclick="pickTech('olovo')"
+          style="flex:1;justify-content:center">🔧 OLOVO</button>
+      </div>
+      <input type="hidden" id="nm-tech" value="bezolovo">
+    </div>
+
+    <div class="input-group">
+      <div class="input-label">Typ výroby</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap" id="nm-pt-row">
+        ${Object.entries(PROD_TYPES).map(([k,v],i) => `
+          <button type="button" class="action-btn" data-pt="${k}" onclick="pickProdType('${k}')"
+            style="flex:1;min-width:90px;justify-content:center;
+              ${i===0?`border-color:${v.color};color:${v.color};background:${v.color}22`:''}">${v.icon} ${v.label}</button>
+        `).join('')}
+      </div>
+      <input type="hidden" id="nm-pt" value="new">
+    </div>
+
+    <div class="input-group">
+      <div class="input-label">Číslo planžety (stencil)</div>
+      <input class="input" id="nm-stencil" placeholder="např. PL-VB300-R3">
+    </div>
+
+    <div class="input-group">
+      <div class="input-label">🏭 Stanoviště výroby (${pickedStations.length}/${STATIONS.length})</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:6px">
+        Vyberte, kterými stanovišti zakázka projde. Defaultně všechna.
+      </div>
+      <div id="nm-stations" style="display:flex;flex-wrap:wrap;gap:6px">
+        ${STATIONS.map(st => {
+          const on = pickedStations.includes(st.id);
+          return `<button type="button" class="action-btn" data-st="${st.id}"
+            onclick="toggleStation(${st.id})"
+            style="font-size:11px;padding:6px 10px;${on?'border-color:var(--gold);color:var(--gold);background:rgba(212,160,23,.12)':''}">
+            ${st.icon} ${st.name}
+          </button>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <div class="input-group">
+      <div class="input-label">📎 Dokumenty k výrobku</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">
+        ${[
+          ['bom',     '📊 BOM'],
+          ['drawing', '📐 Osazovací výkres'],
+          ['paste',   '🎯 GBR data pasty'],
+          ['other',   '📄 Ostatní'],
+        ].map(([k,l]) => `
+          <label class="action-btn" style="cursor:pointer;font-size:11px;justify-content:center">
+            ${l}
+            <input type="file" style="display:none"
+              accept=".pdf,.xlsx,.xls,.csv,.zip,.gbr,.gbx,.txt,.docx,.dwg,image/*"
+              onchange="handleDocPick('${k}', this.files[0])">
+          </label>`).join('')}
+      </div>
+      <div id="nm-doc-list" style="font-size:11px;color:var(--text2)">
+        Zatím žádné dokumenty nepřipojeny.
+      </div>
     </div>
   `, [
     { label:'Zrušit', action:'closeModal()', cls:'btn-ghost' },
     { label:'Vytvořit zakázku', action:'createOrder()', cls:'btn-primary' },
   ]);
+
+  // Předvyplnit termín na +14 dní
+  const due = new Date(); due.setDate(due.getDate()+14);
+  document.getElementById('nm-due').value = due.toISOString().slice(0,10);
+}
+
+function toggleStation(stId) {
+  if (pickedStations.includes(stId)) {
+    pickedStations = pickedStations.filter(x => x !== stId);
+  } else {
+    pickedStations = [...pickedStations, stId].sort((a,b) => a-b);
+  }
+  // Re-render station picker block in place
+  const wrap = document.getElementById('nm-stations');
+  if (wrap) {
+    wrap.innerHTML = STATIONS.map(st => {
+      const on = pickedStations.includes(st.id);
+      return `<button type="button" class="action-btn" data-st="${st.id}"
+        onclick="toggleStation(${st.id})"
+        style="font-size:11px;padding:6px 10px;${on?'border-color:var(--gold);color:var(--gold);background:rgba(212,160,23,.12)':''}">
+        ${st.icon} ${st.name}
+      </button>`;
+    }).join('');
+    const lbl = wrap.previousElementSibling?.previousElementSibling;
+    if (lbl) lbl.textContent = `🏭 Stanoviště výroby (${pickedStations.length}/${STATIONS.length})`;
+  }
+}
+
+function pickTech(tech) {
+  document.getElementById('nm-tech').value = tech;
+  document.querySelectorAll('#nm-tech-row [data-tech]').forEach(btn => {
+    const active = btn.dataset.tech === tech;
+    if (active) {
+      btn.style.borderColor = 'var(--gold)';
+      btn.style.color = 'var(--gold)';
+      btn.style.background = 'rgba(212,160,23,.12)';
+    } else {
+      btn.style.borderColor = '';
+      btn.style.color = '';
+      btn.style.background = '';
+    }
+  });
+}
+
+function pickProdType(pt) {
+  document.getElementById('nm-pt').value = pt;
+  document.querySelectorAll('#nm-pt-row [data-pt]').forEach(btn => {
+    const k = btn.dataset.pt;
+    if (k === pt) {
+      const c = PROD_TYPES[k].color;
+      btn.style.borderColor = c;
+      btn.style.color = c;
+      btn.style.background = c + '22';
+    } else {
+      btn.style.borderColor = '';
+      btn.style.color = '';
+      btn.style.background = '';
+    }
+  });
+}
+
+function handleDocPick(kind, file) {
+  if (!file) return;
+  pendingDocs.push({ name:file.name, type:kind, size:file.size });
+  renderPendingDocs();
+}
+
+function renderPendingDocs() {
+  const el = document.getElementById('nm-doc-list');
+  if (!el) return;
+  if (pendingDocs.length === 0) {
+    el.innerHTML = '<span style="color:var(--text3)">Zatím žádné dokumenty nepřipojeny.</span>';
+    return;
+  }
+  el.innerHTML = pendingDocs.map((d,i) => `
+    <div style="display:flex;align-items:center;gap:8px;background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:6px 10px;margin-bottom:4px">
+      <span style="font-size:14px">${docIcon(d.type)}</span>
+      <span style="flex:1;font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(d.name)}</span>
+      <span style="font-size:10px;color:var(--text3)">${(d.size/1024).toFixed(0)} kB</span>
+      <button class="btn btn-ghost btn-sm" style="padding:2px 8px" onclick="pendingDocs.splice(${i},1);renderPendingDocs()">✕</button>
+    </div>`).join('');
+}
+
+function docIcon(t) {
+  return { bom:'📊', drawing:'📐', paste:'🎯', other:'📄' }[t] || '📎';
+}
+function docTypeLabel(t) {
+  return { bom:'BOM', drawing:'Osaz. výkres', paste:'GBR pasta', other:'Dokument' }[t] || t;
 }
 
 function createOrder() {
   const name = document.getElementById('nm-name').value.trim();
-  if (!name) { showToast('⚠️ Vyplňte název výrobku'); return; }
+  const customer = document.getElementById('nm-customer').value.trim();
+  if (!customer) { showToast('⚠️ Vyplňte zákazníka'); return; }
+  if (!name)     { showToast('⚠️ Vyplňte název výrobku'); return; }
   const num = String(NEXT_ORDER_CODE++);
   ORDERS.push({
     id: 'o' + Date.now(),
     number: num,
     name,
+    customer,
     priority: document.getElementById('nm-priority').value,
-    qty: parseInt(document.getElementById('nm-qty').value)||1,
-    customer: document.getElementById('nm-customer').value || '-',
+    qty: parseInt(document.getElementById('nm-qty').value) || 1,
     due: document.getElementById('nm-due').value || '',
-    stations: [
-      { stId:1, status:'waiting', qtyOk:0, qtyRework:0, qtyScrap:0, qtyReceived:0 },
-      { stId:12,status:'waiting', qtyOk:0, qtyRework:0, qtyScrap:0, qtyReceived:0 },
-    ],
+    orderDate: new Date().toISOString().slice(0,10),
+    technology: document.getElementById('nm-tech').value,
+    productionType: document.getElementById('nm-pt').value,
+    stencilNumber: document.getElementById('nm-stencil').value.trim(),
+    documents: [...pendingDocs],
+    stations: pickedStations.map(stId => ({
+      stId, status:'waiting', qtyOk:0, qtyRework:0, qtyScrap:0, qtyReceived:0,
+    })),
   });
+  pendingDocs = [];
+  pickedStations = DEFAULT_STATIONS.slice();
   closeModal();
   showToast('✅ Zakázka č. ' + num + ' vytvořena');
   renderOrders();
