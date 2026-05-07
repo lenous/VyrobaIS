@@ -465,7 +465,7 @@ const LS_KEY = 'vyrobais_state_v1';
 const CLOUD_ROW_ID = 'main';
 
 function currentState() {
-  return { ORDERS, ISSUES, PROD_NOTES, USERS, APP_SETTINGS, NEXT_ORDER_CODE };
+  return { ORDERS, ISSUES, PROD_NOTES, USERS, APP_SETTINGS, NEXT_ORDER_CODE, LOGIN_LOGS };
 }
 function applyState(s) {
   if (!s) return;
@@ -473,6 +473,7 @@ function applyState(s) {
   if (Array.isArray(s.ISSUES))     ISSUES     = s.ISSUES;
   if (Array.isArray(s.PROD_NOTES)) PROD_NOTES = s.PROD_NOTES;
   if (Array.isArray(s.USERS) && s.USERS.length) USERS = s.USERS;
+  if (Array.isArray(s.LOGIN_LOGS)) LOGIN_LOGS = s.LOGIN_LOGS;
   if (s.APP_SETTINGS) APP_SETTINGS = { ...APP_SETTINGS, ...s.APP_SETTINGS };
   if (s.NEXT_ORDER_CODE) NEXT_ORDER_CODE = s.NEXT_ORDER_CODE;
 }
@@ -650,12 +651,16 @@ let ORDERS = [
   },
 ];
 
+const LOGIN_LOG_KEY = 'vyrobais-login-log-v1';
+let LOGIN_LOGS = loadLoginLogs();
+
 // ── HYDRATE z localStorage (demo data jsou fallback) ─
 const _saved = loadState();
 if (_saved) {
   if (Array.isArray(_saved.ORDERS))     ORDERS     = _saved.ORDERS;
   if (Array.isArray(_saved.ISSUES))     ISSUES     = _saved.ISSUES;
   if (Array.isArray(_saved.PROD_NOTES)) PROD_NOTES = _saved.PROD_NOTES;
+  if (Array.isArray(_saved.LOGIN_LOGS)) LOGIN_LOGS = _saved.LOGIN_LOGS;
   if (Array.isArray(_saved.USERS) && _saved.USERS.length) {
     // sloučit – nepřepisovat výchozí uživatele, jen přidat nové
     const existingLogins = new Set(USERS.map(u => u.login));
@@ -683,16 +688,66 @@ let numpadValue = '';
 let numpadCallback = null;
 let numpadField = null;
 
+function loadLoginLogs() {
+  try {
+    return JSON.parse(localStorage.getItem(LOGIN_LOG_KEY) || '[]');
+  } catch {
+    return [];
+  }
+}
+
+function saveLoginLogs() {
+  try {
+    localStorage.setItem(LOGIN_LOG_KEY, JSON.stringify(LOGIN_LOGS.slice(0, 200)));
+    localStorage.setItem(LS_KEY, JSON.stringify(currentState()));
+  } catch {
+    // Staticka demo verze muze bezet i v rezimu bez localStorage.
+  }
+  cloudPush();
+}
+
+function loginSourceDetails() {
+  const nav = window.navigator || {};
+  const screenInfo = window.screen ? `${window.screen.width}x${window.screen.height}` : `${window.innerWidth}x${window.innerHeight}`;
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'nezjisteno';
+  return {
+    host: window.location.host || 'lokalni soubor',
+    url: window.location.href,
+    device: nav.platform || 'nezjisteno',
+    browser: nav.userAgent || 'nezjisteno',
+    language: nav.language || 'nezjisteno',
+    timezone: tz,
+    screen: screenInfo,
+  };
+}
+
+function recordLoginEvent(login, user, success) {
+  LOGIN_LOGS.unshift({
+    id: 'll' + Date.now(),
+    at: new Date().toISOString(),
+    success,
+    login,
+    userId: user?.id || null,
+    name: user?.name || 'Neznamy uzivatel',
+    role: user?.role || null,
+    source: loginSourceDetails(),
+  });
+  LOGIN_LOGS = LOGIN_LOGS.slice(0, 200);
+  saveLoginLogs();
+}
+
 // ── LOGIN / LOGOUT ─────────────────────────────────────
 function doLogin() {
   const u = document.getElementById('login-user').value.trim().toLowerCase();
   const p = document.getElementById('login-pass').value;
   const found = USERS.find(x => x.login === u && x.password === p);
   if (!found) {
+    recordLoginEvent(u || '(prazdne)', null, false);
     document.getElementById('login-error').textContent = 'Nesprávné přihlašovací jméno nebo heslo.';
     return;
   }
   currentUser = found;
+  recordLoginEvent(u, found, true);
   document.getElementById('login-error').textContent = '';
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
@@ -1864,6 +1919,7 @@ function renderAdmin() {
     <div style="padding:12px 0 8px;font-size:16px;font-weight:800;color:var(--gold)">⚙️ Správa aplikace</div>
     <div class="admin-tabs">
       <div class="admin-tab ${adminTab==='users'?'active':''}" onclick="switchAdminTab('users')">👥 Uživatelé</div>
+      <div class="admin-tab ${adminTab==='login_logs'?'active':''}" onclick="switchAdminTab('login_logs')">🔐 Přihlášení</div>
       <div class="admin-tab ${adminTab==='settings'?'active':''}" onclick="switchAdminTab('settings')">⚙️ Nastavení</div>
       <div class="admin-tab ${adminTab==='stations'?'active':''}" onclick="switchAdminTab('stations')">🏭 Stanoviště</div>
       <div class="admin-tab ${adminTab==='orders_mgmt'?'active':''}" onclick="switchAdminTab('orders_mgmt')">📋 Zakázky</div>
@@ -1872,6 +1928,9 @@ function renderAdmin() {
 
     <div class="admin-section ${adminTab==='users'?'active':''}" id="adm-users">
       ${renderAdminUsers()}
+    </div>
+    <div class="admin-section ${adminTab==='login_logs'?'active':''}" id="adm-login-logs">
+      ${renderAdminLoginLogs()}
     </div>
     <div class="admin-section ${adminTab==='settings'?'active':''}" id="adm-settings">
       ${renderAdminSettings()}
@@ -1997,6 +2056,82 @@ function renderAdminUsers() {
       <span class="role-badge role-${u.role}">${ROLE_LABELS[u.role]}</span>
       <button class="btn btn-ghost btn-sm" onclick="editUserModal('${u.id}')">✏️</button>
     </div>`).join('')}`;
+}
+
+function renderAdminLoginLogs() {
+  const okCount = LOGIN_LOGS.filter(log => log.success).length;
+  const failCount = LOGIN_LOGS.filter(log => !log.success).length;
+  const rows = LOGIN_LOGS.slice(0, 80);
+  return `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px;flex-wrap:wrap">
+      <div style="font-size:13px;color:var(--text2)">
+        Admin vidí posledních ${rows.length} záznamů přihlášení uložených v této instalaci/prohlížeči.
+      </div>
+      <button class="btn btn-danger btn-sm" onclick="clearLoginLogs()">Vymazat logy</button>
+    </div>
+
+    <div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:var(--text2);line-height:1.45">
+      Demo verze běží bez serveru, proto neumí sama zjistit interní IP adresu uživatele. V produkční interní síti by se stejný log ukládal serverově do databáze včetně IP adresy, případně jména zařízení.
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat-card"><div class="stat-val" style="color:var(--green)">${okCount}</div><div class="stat-lbl">Úspěšná přihlášení</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:var(--red)">${failCount}</div><div class="stat-lbl">Neúspěšné pokusy</div></div>
+      <div class="stat-card"><div class="stat-val">${LOGIN_LOGS.length}</div><div class="stat-lbl">Záznamů celkem</div></div>
+    </div>
+
+    ${rows.length === 0
+      ? `<div class="card" style="text-align:center;color:var(--text2);padding:26px">Zatím nejsou uložené žádné logy přihlášení.</div>`
+      : rows.map(loginLogHtml).join('')}
+  `;
+}
+
+function loginLogHtml(log) {
+  const source = log.source || {};
+  const statusColor = log.success ? 'var(--green)' : 'var(--red)';
+  const statusText = log.success ? 'Úspěšné přihlášení' : 'Neúspěšný pokus';
+  const role = log.role ? ROLE_LABELS[log.role] : 'bez role';
+  return `<div class="card" style="border-left:4px solid ${statusColor}">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px">
+      <div>
+        <div style="font-size:14px;font-weight:800;color:var(--text)">${escapeHtml(log.name)}</div>
+        <div style="font-size:11px;color:var(--text2)">Login: <b>${escapeHtml(log.login)}</b> · ${escapeHtml(role)}</div>
+      </div>
+      <span class="badge" style="background:${log.success ? 'rgba(34,197,94,.14)' : 'rgba(239,68,68,.14)'};color:${statusColor}">${statusText}</span>
+    </div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:6px">
+      🕒 ${formatDateTime(log.at)}
+    </div>
+    <div style="background:var(--card2);border-radius:8px;padding:9px 10px;font-size:11px;color:var(--text2);line-height:1.45">
+      <div><b style="color:var(--text)">Odkud:</b> ${escapeHtml(source.host || '-')}</div>
+      <div><b style="color:var(--text)">Zařízení:</b> ${escapeHtml(source.device || '-')} · ${escapeHtml(source.screen || '-')}</div>
+      <div><b style="color:var(--text)">Jazyk / zóna:</b> ${escapeHtml(source.language || '-')} · ${escapeHtml(source.timezone || '-')}</div>
+      <div style="word-break:break-word"><b style="color:var(--text)">Prohlížeč:</b> ${escapeHtml(shortBrowser(source.browser || '-'))}</div>
+    </div>
+  </div>`;
+}
+
+function clearLoginLogs() {
+  if (!confirm('Opravdu vymazat logy přihlášení v tomto prohlížeči?')) return;
+  LOGIN_LOGS = [];
+  saveLoginLogs();
+  renderAdmin();
+  showToast('Logy přihlášení vymazány');
+}
+
+function shortBrowser(ua) {
+  return ua.length > 140 ? ua.slice(0, 140) + '...' : ua;
+}
+
+function formatDateTime(value) {
+  if (!value) return '-';
+  return new Date(value).toLocaleString('cs-CZ', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 function renderAdminSettings() {

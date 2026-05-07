@@ -31,6 +31,7 @@ Heslo pro všechny uživatele: `1234`
 - Autocomplete zákazníků a výrobků z předchozích zakázek
 - Správa stanovišť k zakázce – mistr/admin může stanoviště zapínat/vypínat
 - Role-based přístup, admin panel s nastavením aplikace
+- Admin audit přihlášení: kdo se přihlásil, kdy a z jakého zařízení/prohlížeče
 - 9 výrobních stanovišť: Sklad, Automat, AOI, RTG, Montáž THT,
   Pájení vlnou/selektivní, Oprava po pájení, Výstupní kontrola, Balení
 
