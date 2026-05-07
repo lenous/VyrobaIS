@@ -60,6 +60,13 @@
     transition: border-color .2s;
   }
   .login-input:focus { border-color: var(--gold); }
+  .remember-row {
+    display: flex; align-items: center; gap: 9px; margin: -4px 0 16px;
+    color: var(--text2); font-size: 12px; cursor: pointer; user-select: none;
+  }
+  .remember-row input {
+    width: 16px; height: 16px; accent-color: var(--gold); cursor: pointer;
+  }
   .login-btn {
     width: 100%; background: linear-gradient(135deg, var(--gold), #b8860b);
     border: none; border-radius: var(--radius); color: #0a0a0a;
@@ -363,6 +370,11 @@
 
     <div class="login-label">Heslo</div>
     <input id="login-pass" class="login-input" type="password" placeholder="••••" autocomplete="current-password" />
+
+    <label class="remember-row">
+      <input id="remember-user" type="checkbox" />
+      <span>Zapamatovat uživatele</span>
+    </label>
 
     <button class="login-btn" onclick="doLogin()">Přihlásit se</button>
     <div id="login-error" class="login-error"></div>
@@ -743,6 +755,33 @@ function recordLoginEvent(login, user, success) {
 }
 
 // ── LOGIN / LOGOUT ─────────────────────────────────────
+const REMEMBER_USER_KEY = 'vyrobais-remember-user';
+
+function savedLoginUser() {
+  try { return localStorage.getItem(REMEMBER_USER_KEY) || ''; }
+  catch { return ''; }
+}
+
+function applyRememberedLogin() {
+  const saved = savedLoginUser();
+  const userInput = document.getElementById('login-user');
+  const remember = document.getElementById('remember-user');
+  userInput.value = saved;
+  remember.checked = !!saved;
+  if (saved) document.getElementById('login-pass').focus();
+  else userInput.focus();
+}
+
+function updateRememberedLogin(login) {
+  const remember = document.getElementById('remember-user').checked;
+  try {
+    if (remember && login) localStorage.setItem(REMEMBER_USER_KEY, login);
+    else localStorage.removeItem(REMEMBER_USER_KEY);
+  } catch {
+    // Zapamatovani je pouze pohodlna lokalni volba v prohlizeci.
+  }
+}
+
 function doLogin() {
   const u = document.getElementById('login-user').value.trim().toLowerCase();
   const p = document.getElementById('login-pass').value;
@@ -753,6 +792,7 @@ function doLogin() {
     return;
   }
   currentUser = found;
+  updateRememberedLogin(u);
   recordLoginEvent(u, found, true);
   document.getElementById('login-error').textContent = '';
   document.getElementById('login-screen').style.display = 'none';
@@ -763,13 +803,17 @@ function doLogin() {
 
 document.getElementById('login-pass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
 document.getElementById('login-user').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('login-pass').focus(); });
+document.getElementById('remember-user').addEventListener('change', () => {
+  if (!document.getElementById('remember-user').checked) updateRememberedLogin('');
+});
+applyRememberedLogin();
 
 function doLogout() {
   currentUser = null;
   document.getElementById('app').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
-  document.getElementById('login-user').value = '';
   document.getElementById('login-pass').value = '';
+  applyRememberedLogin();
 }
 
 // ── ROLE PERMISSIONS ──────────────────────────────────
