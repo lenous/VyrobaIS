@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>VýrobaIS – Systém řízení výroby</title>
 <meta name="description" content="Systém řízení výroby pro elektronickou výrobu (EMS).">
+<meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#0a0a0a">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
@@ -533,17 +534,41 @@ if (SUPABASE_URL && SUPABASE_KEY && window.supabase) {
 // ── PERSISTENCE: localStorage + Supabase ──────────────
 const LS_KEY = 'vyrobais_state_v1';
 const CLOUD_ROW_ID = 'main';
+const SECURITY_VERSION = 2;
+
+function userProfilesForStorage() {
+  return USERS.map(({ password, ...profile }) => ({ ...profile }));
+}
+
+function localState() {
+  return {
+    ORDERS, ISSUES, PROD_NOTES,
+    USERS: userProfilesForStorage(),
+    APP_SETTINGS, NEXT_ORDER_CODE, LOGIN_LOGS, PRODUCT_MEMORY,
+    securityVersion: SECURITY_VERSION,
+  };
+}
+
+function cloudState() {
+  return {
+    ORDERS, ISSUES, PROD_NOTES,
+    APP_SETTINGS, NEXT_ORDER_CODE, PRODUCT_MEMORY,
+    securityVersion: SECURITY_VERSION,
+    securityNote: 'Cloud state intentionally excludes user profiles, credentials and login logs.',
+  };
+}
 
 function currentState() {
-  return { ORDERS, ISSUES, PROD_NOTES, USERS, APP_SETTINGS, NEXT_ORDER_CODE, LOGIN_LOGS, PRODUCT_MEMORY };
+  return localState();
 }
-function applyState(s) {
+
+function applyState(s, options = {}) {
   if (!s) return;
   if (Array.isArray(s.ORDERS))     ORDERS     = s.ORDERS;
   if (Array.isArray(s.ISSUES))     ISSUES     = s.ISSUES;
   if (Array.isArray(s.PROD_NOTES)) PROD_NOTES = s.PROD_NOTES;
-  if (Array.isArray(s.USERS) && s.USERS.length) USERS = s.USERS;
-  if (Array.isArray(s.LOGIN_LOGS)) LOGIN_LOGS = s.LOGIN_LOGS;
+  if (options.includeUsers && Array.isArray(s.USERS) && s.USERS.length) mergeUserProfiles(s.USERS);
+  if (options.includeLogs && Array.isArray(s.LOGIN_LOGS)) LOGIN_LOGS = s.LOGIN_LOGS;
   if (s.PRODUCT_MEMORY && typeof s.PRODUCT_MEMORY === 'object') PRODUCT_MEMORY = s.PRODUCT_MEMORY;
   if (s.APP_SETTINGS) APP_SETTINGS = { ...APP_SETTINGS, ...s.APP_SETTINGS };
   if (s.NEXT_ORDER_CODE) NEXT_ORDER_CODE = s.NEXT_ORDER_CODE;
@@ -564,6 +589,8 @@ function loadState() {
 function resetState() {
   if (!confirm('Opravdu vymazat všechna lokální data a vrátit demo?')) return;
   localStorage.removeItem(LS_KEY);
+  localStorage.removeItem(USER_CREDENTIALS_KEY);
+  localStorage.removeItem(LOGIN_GUARD_KEY);
   location.reload();
 }
 
@@ -575,7 +602,7 @@ function cloudPush() {
   cloudPushTimer = setTimeout(async () => {
     try {
       await db.from('app_state')
-        .upsert({ id: CLOUD_ROW_ID, data: currentState(), updated_at: new Date().toISOString() });
+        .upsert({ id: CLOUD_ROW_ID, data: cloudState(), updated_at: new Date().toISOString() });
     } catch (e) { console.warn('Cloud push failed:', e); }
   }, 800);
 }
@@ -586,7 +613,7 @@ async function cloudPull() {
     const { data, error } = await db.from('app_state')
       .select('data, updated_at').eq('id', CLOUD_ROW_ID).maybeSingle();
     if (error) { console.warn('Cloud pull error:', error); return false; }
-    if (data?.data) { applyState(data.data); return true; }
+    if (data?.data) { applyState(data.data, { includeUsers: false, includeLogs: false }); return true; }
   } catch (e) { console.warn('Cloud pull failed:', e); }
   return false;
 }
@@ -607,16 +634,87 @@ function startCloudRealtime() {
 
 // ── USERS ──────────────────────────────────────────────
 let USERS = [
-  { id:'u1', login:'admin',  password:'1234', role:'admin',      name:'Administrátor',    avatar:'🔧', color:'#ef4444' },
-  { id:'u2', login:'mistr',  password:'1234', role:'dispatcher', name:'Jan Novák',        avatar:'👷', color:'#3b82f6' },
-  { id:'u3', login:'tpv',    password:'1234', role:'tpv',        name:'Petra Svobodová',  avatar:'📐', color:'#a855f7' },
-  { id:'u4', login:'vedeni', password:'1234', role:'management', name:'Karel Dvořák',     avatar:'📊', color:'#22c55e' },
-  { id:'u5', login:'op1',    password:'1234', role:'operator',   name:'Marie Horáčková',  avatar:'⚙️', color:'#6b7280' },
-  { id:'u6', login:'op2',    password:'1234', role:'operator',   name:'Tomáš Procházka',  avatar:'⚙️', color:'#6b7280' },
-  { id:'u7', login:'op3',    password:'1234', role:'operator',   name:'Jana Kučerová',    avatar:'⚙️', color:'#6b7280' },
+  { id:'u1', login:'admin',  role:'admin',      name:'Administrátor',    avatar:'🔧', color:'#ef4444' },
+  { id:'u2', login:'mistr',  role:'dispatcher', name:'Jan Novák',        avatar:'👷', color:'#3b82f6' },
+  { id:'u3', login:'tpv',    role:'tpv',        name:'Petra Svobodová',  avatar:'📐', color:'#a855f7' },
+  { id:'u4', login:'vedeni', role:'management', name:'Karel Dvořák',     avatar:'📊', color:'#22c55e' },
+  { id:'u5', login:'op1',    role:'operator',   name:'Marie Horáčková',  avatar:'⚙️', color:'#6b7280' },
+  { id:'u6', login:'op2',    role:'operator',   name:'Tomáš Procházka',  avatar:'⚙️', color:'#6b7280' },
+  { id:'u7', login:'op3',    role:'operator',   name:'Jana Kučerová',    avatar:'⚙️', color:'#6b7280' },
 ];
 
 const ROLE_LABELS = { admin:'Admin', dispatcher:'Mistr', tpv:'TPV', management:'Vedení', operator:'Operátor' };
+const DEFAULT_DEMO_PASSWORD = '1234';
+const USER_CREDENTIALS_KEY = 'vyrobais-creds-v2';
+
+let USER_PASSWORDS = loadUserPasswords();
+
+function normalizeLogin(login) {
+  return String(login || '').trim().toLowerCase();
+}
+
+function loadUserPasswords() {
+  try {
+    const raw = localStorage.getItem(USER_CREDENTIALS_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveUserPasswords() {
+  try { localStorage.setItem(USER_CREDENTIALS_KEY, JSON.stringify(USER_PASSWORDS)); }
+  catch { /* Demo umi bezet i bez localStorage. */ }
+}
+
+function passwordForUser(user) {
+  const login = normalizeLogin(user?.login);
+  return USER_PASSWORDS[login] || DEFAULT_DEMO_PASSWORD;
+}
+
+function setUserPassword(login, password) {
+  const key = normalizeLogin(login);
+  if (!key || !password) return;
+  USER_PASSWORDS[key] = String(password);
+  saveUserPasswords();
+}
+
+function migrateCredentialsFromState(state) {
+  if (!Array.isArray(state?.USERS)) return;
+  let changed = false;
+  state.USERS.forEach(u => {
+    const login = normalizeLogin(u?.login);
+    if (login && u.password && !USER_PASSWORDS[login]) {
+      USER_PASSWORDS[login] = String(u.password);
+      changed = true;
+    }
+    if (u && 'password' in u) delete u.password;
+  });
+  if (changed) saveUserPasswords();
+}
+
+function sanitizeUserProfile(u) {
+  const login = normalizeLogin(u?.login);
+  if (!login) return null;
+  const role = ROLE_LABELS[u.role] ? u.role : 'operator';
+  return {
+    id: String(u.id || ('u' + Date.now())),
+    login,
+    role,
+    name: String(u.name || login),
+    avatar: String(u.avatar || '👤'),
+    color: String(u.color || '#6b7280'),
+  };
+}
+
+function mergeUserProfiles(profiles) {
+  profiles.map(sanitizeUserProfile).filter(Boolean).forEach(profile => {
+    const existing = USERS.find(u => u.id === profile.id || normalizeLogin(u.login) === profile.login);
+    if (existing) Object.assign(existing, profile);
+    else USERS.push(profile);
+  });
+}
 
 // ── APP SETTINGS (editable by admin) ──────────────────
 let APP_SETTINGS = {
@@ -730,18 +828,8 @@ let PRODUCT_MEMORY = {};
 // ── HYDRATE z localStorage (demo data jsou fallback) ─
 const _saved = loadState();
 if (_saved) {
-  if (Array.isArray(_saved.ORDERS))     ORDERS     = _saved.ORDERS;
-  if (Array.isArray(_saved.ISSUES))     ISSUES     = _saved.ISSUES;
-  if (Array.isArray(_saved.PROD_NOTES)) PROD_NOTES = _saved.PROD_NOTES;
-  if (Array.isArray(_saved.LOGIN_LOGS)) LOGIN_LOGS = _saved.LOGIN_LOGS;
-  if (_saved.PRODUCT_MEMORY && typeof _saved.PRODUCT_MEMORY === 'object') PRODUCT_MEMORY = _saved.PRODUCT_MEMORY;
-  if (Array.isArray(_saved.USERS) && _saved.USERS.length) {
-    // sloučit – nepřepisovat výchozí uživatele, jen přidat nové
-    const existingLogins = new Set(USERS.map(u => u.login));
-    _saved.USERS.forEach(u => { if (!existingLogins.has(u.login)) USERS.push(u); });
-  }
-  if (_saved.APP_SETTINGS)  APP_SETTINGS = { ...APP_SETTINGS, ..._saved.APP_SETTINGS };
-  if (_saved.NEXT_ORDER_CODE) NEXT_ORDER_CODE = _saved.NEXT_ORDER_CODE;
+  migrateCredentialsFromState(_saved);
+  applyState(_saved, { includeUsers: true, includeLogs: true });
 }
 normalizeAppData();
 
@@ -814,6 +902,57 @@ function recordLoginEvent(login, user, success) {
 
 // ── LOGIN / LOGOUT ─────────────────────────────────────
 const REMEMBER_USER_KEY = 'vyrobais-remember-user';
+const LOGIN_GUARD_KEY = 'vyrobais-login-guard-v1';
+const LOGIN_MAX_ATTEMPTS = 5;
+const LOGIN_LOCK_MS = 60 * 1000;
+
+function loadLoginGuard() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(LOGIN_GUARD_KEY) || '{}');
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveLoginGuard(guard) {
+  try { localStorage.setItem(LOGIN_GUARD_KEY, JSON.stringify(guard)); }
+  catch { /* Jen lokální ochrana proti rychlému hádání hesla. */ }
+}
+
+function loginGuardStatus(login) {
+  const key = normalizeLogin(login) || '_empty';
+  const guard = loadLoginGuard();
+  const entry = guard[key];
+  if (!entry?.lockedUntil) return { locked: false, remainingSec: 0 };
+  const remaining = Math.ceil((entry.lockedUntil - Date.now()) / 1000);
+  if (remaining <= 0) {
+    delete guard[key];
+    saveLoginGuard(guard);
+    return { locked: false, remainingSec: 0 };
+  }
+  return { locked: true, remainingSec: remaining };
+}
+
+function registerLoginFailure(login) {
+  const key = normalizeLogin(login) || '_empty';
+  const guard = loadLoginGuard();
+  const entry = guard[key] || { count: 0, lockedUntil: 0 };
+  entry.count = (entry.count || 0) + 1;
+  if (entry.count >= LOGIN_MAX_ATTEMPTS) {
+    entry.lockedUntil = Date.now() + LOGIN_LOCK_MS;
+    entry.count = 0;
+  }
+  guard[key] = entry;
+  saveLoginGuard(guard);
+}
+
+function clearLoginFailures(login) {
+  const key = normalizeLogin(login) || '_empty';
+  const guard = loadLoginGuard();
+  delete guard[key];
+  saveLoginGuard(guard);
+}
 
 function savedLoginUser() {
   try { return localStorage.getItem(REMEMBER_USER_KEY) || ''; }
@@ -841,15 +980,23 @@ function updateRememberedLogin(login) {
 }
 
 function doLogin() {
-  const u = document.getElementById('login-user').value.trim().toLowerCase();
+  const u = normalizeLogin(document.getElementById('login-user').value);
   const p = document.getElementById('login-pass').value;
-  const found = USERS.find(x => x.login === u && x.password === p);
+  const guard = loginGuardStatus(u);
+  if (guard.locked) {
+    document.getElementById('login-error').textContent =
+      `Příliš mnoho pokusů. Zkuste to znovu za ${guard.remainingSec} s.`;
+    return;
+  }
+  const found = USERS.find(x => normalizeLogin(x.login) === u && passwordForUser(x) === p);
   if (!found) {
+    registerLoginFailure(u);
     recordLoginEvent(u || '(prazdne)', null, false);
     document.getElementById('login-error').textContent = 'Nesprávné přihlašovací jméno nebo heslo.';
     return;
   }
   currentUser = found;
+  clearLoginFailures(u);
   updateRememberedLogin(u);
   recordLoginEvent(u, found, true);
   document.getElementById('login-error').textContent = '';
@@ -2301,6 +2448,14 @@ function renderAdminCloud() {
       </div>
     </div>
 
+    <div class="card" style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3)">
+      <div class="card-title">🔐 Bezpečnost cloud režimu</div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.5">
+        Aktuální statická verze už neposílá do cloudu hesla, profily uživatelů ani logy přihlášení.
+        Pro ostrý provoz je ale potřeba serverová autorizace: Python/FastAPI backend nebo Supabase Auth + RLS podle rolí.
+      </div>
+    </div>
+
     <div class="card">
       <div class="card-title">🔗 Konfigurace Supabase</div>
       <div style="font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.5">
@@ -2327,7 +2482,7 @@ function renderAdminCloud() {
     <div class="card">
       <div class="card-title">💾 Lokální data</div>
       <div style="font-size:12px;color:var(--text2);margin-bottom:10px">
-        Data uložená v tomto prohlížeči (orders, problémy, poznámky, uživatelé). Po vymazání se vrátí výchozí demo.
+        Data uložená v tomto prohlížeči (zakázky, problémy, poznámky, profily uživatelů bez hesel). Hesla jsou oddělená lokálně a neposílají se do cloudu ani exportu.
       </div>
       <button class="btn btn-danger btn-sm" onclick="resetState()">🗑️ Vymazat lokální data</button>
       <button class="btn btn-ghost btn-sm" onclick="exportData()" style="margin-left:6px">📤 Export JSON</button>
@@ -2362,8 +2517,12 @@ window.disconnectCloud = function() {
 };
 
 window.exportData = function() {
-  const data = { ORDERS, ISSUES, PROD_NOTES, USERS, APP_SETTINGS, NEXT_ORDER_CODE, PRODUCT_MEMORY,
-    exportedAt: new Date().toISOString() };
+  const data = {
+    ...localState(),
+    LOGIN_LOGS: [],
+    exportedAt: new Date().toISOString(),
+    exportNote: 'Export neobsahuje hesla ani lokální přihlašovací logy.',
+  };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -2381,10 +2540,10 @@ function renderAdminUsers() {
   </div>
   ${USERS.map(u => `
     <div class="user-card">
-      <div class="user-avatar" style="background:${u.color}22;color:${u.color}">${u.avatar}</div>
+      <div class="user-avatar" style="background:${escapeHtml(u.color)}22;color:${escapeHtml(u.color)}">${escapeHtml(u.avatar)}</div>
       <div class="user-info">
-        <div class="user-name">${u.name}</div>
-        <div class="user-login" style="color:var(--text3)">Login: <b style="color:var(--text2)">${u.login}</b> · Heslo: <b style="color:var(--text2)">${u.password}</b></div>
+        <div class="user-name">${escapeHtml(u.name)}</div>
+        <div class="user-login" style="color:var(--text3)">Login: <b style="color:var(--text2)">${escapeHtml(u.login)}</b> · Heslo: <b style="color:var(--text2)">skryté lokálně</b></div>
       </div>
       <span class="role-badge role-${u.role}">${ROLE_LABELS[u.role]}</span>
       <button class="btn btn-ghost btn-sm" onclick="editUserModal('${u.id}')">✏️</button>
@@ -2532,10 +2691,10 @@ function renderProfile() {
   document.getElementById('page-profile').innerHTML = `
     <div style="padding:12px 0 8px;font-size:16px;font-weight:800;color:var(--gold)">👤 Profil</div>
     <div class="card" style="text-align:center;padding:28px">
-      <div style="font-size:48px;margin-bottom:10px">${u.avatar}</div>
-      <div style="font-size:20px;font-weight:800;color:var(--text);margin-bottom:4px">${u.name}</div>
+      <div style="font-size:48px;margin-bottom:10px">${escapeHtml(u.avatar)}</div>
+      <div style="font-size:20px;font-weight:800;color:var(--text);margin-bottom:4px">${escapeHtml(u.name)}</div>
       <span class="role-badge role-${u.role}" style="font-size:12px">${ROLE_LABELS[u.role]}</span>
-      <div style="margin-top:14px;font-size:12px;color:var(--text2)">Login: <b>${u.login}</b></div>
+      <div style="margin-top:14px;font-size:12px;color:var(--text2)">Login: <b>${escapeHtml(u.login)}</b></div>
     </div>
 
     <div class="card">
@@ -2948,8 +3107,9 @@ function newUserModal() {
       <input class="input" id="nu-login" placeholder="jnovak">
     </div>
     <div class="input-group">
-      <div class="input-label">Heslo</div>
-      <input class="input" id="nu-pass" value="1234">
+      <div class="input-label">Dočasné heslo</div>
+      <input class="input" id="nu-pass" type="password" value="${DEFAULT_DEMO_PASSWORD}" autocomplete="new-password">
+      <div style="font-size:11px;color:var(--text2);margin-top:5px">Heslo se ukládá pouze lokálně v tomto zařízení, ne do cloudu.</div>
     </div>
     <div class="input-group">
       <div class="input-label">Role</div>
@@ -2965,15 +3125,18 @@ function newUserModal() {
 
 function createUser() {
   const name = document.getElementById('nu-name').value.trim();
-  const login = document.getElementById('nu-login').value.trim();
+  const login = normalizeLogin(document.getElementById('nu-login').value);
   if (!name || !login) { showToast('⚠️ Vyplňte jméno a login'); return; }
-  if (USERS.find(u=>u.login===login)) { showToast('⚠️ Login již existuje'); return; }
+  if (USERS.find(u=>normalizeLogin(u.login)===login)) { showToast('⚠️ Login již existuje'); return; }
   const role = document.getElementById('nu-role').value;
   const colors = { admin:'#ef4444', dispatcher:'#3b82f6', tpv:'#a855f7', management:'#22c55e', operator:'#6b7280' };
+  const password = document.getElementById('nu-pass').value || DEFAULT_DEMO_PASSWORD;
   USERS.push({
-    id: 'u' + Date.now(), login, password: document.getElementById('nu-pass').value || '1234',
+    id: 'u' + Date.now(), login,
     role, name, avatar: '👤', color: colors[role]
   });
+  setUserPassword(login, password);
+  autoSave();
   closeModal(); showToast('✅ Uživatel ' + login + ' vytvořen'); renderAdmin();
 }
 
@@ -2983,15 +3146,16 @@ function editUserModal(uid) {
   openModal('Upravit uživatele: ' + u.name, `
     <div class="input-group">
       <div class="input-label">Jméno</div>
-      <input class="input" id="eu-name" value="${u.name}">
+      <input class="input" id="eu-name" value="${escapeHtml(u.name)}">
     </div>
     <div class="input-group">
       <div class="input-label">Login</div>
-      <input class="input" id="eu-login" value="${u.login}">
+      <input class="input" id="eu-login" value="${escapeHtml(u.login)}">
     </div>
     <div class="input-group">
-      <div class="input-label">Heslo</div>
-      <input class="input" id="eu-pass" value="${u.password}">
+      <div class="input-label">Nové heslo</div>
+      <input class="input" id="eu-pass" type="password" placeholder="nechte prázdné pro zachování" autocomplete="new-password">
+      <div style="font-size:11px;color:var(--text2);margin-top:5px">Heslo se nezobrazuje zpět a zůstává jen v lokálním úložišti zařízení.</div>
     </div>
     <div class="input-group">
       <div class="input-label">Role</div>
@@ -3008,10 +3172,24 @@ function editUserModal(uid) {
 function saveEditUser(uid) {
   const u = USERS.find(x=>x.id===uid);
   if (!u) return;
+  const oldLogin = normalizeLogin(u.login);
+  const newLogin = normalizeLogin(document.getElementById('eu-login').value);
+  if (!newLogin) { showToast('⚠️ Login nesmí být prázdný'); return; }
+  if (USERS.some(x => x.id !== uid && normalizeLogin(x.login) === newLogin)) {
+    showToast('⚠️ Login již existuje');
+    return;
+  }
   u.name  = document.getElementById('eu-name').value;
-  u.login = document.getElementById('eu-login').value;
-  u.password = document.getElementById('eu-pass').value;
+  u.login = newLogin;
+  const newPassword = document.getElementById('eu-pass').value;
+  if (newLogin && oldLogin !== newLogin && USER_PASSWORDS[oldLogin] && !USER_PASSWORDS[newLogin]) {
+    USER_PASSWORDS[newLogin] = USER_PASSWORDS[oldLogin];
+    delete USER_PASSWORDS[oldLogin];
+    saveUserPasswords();
+  }
+  if (newPassword) setUserPassword(newLogin, newPassword);
   u.role  = document.getElementById('eu-role').value;
+  autoSave();
   closeModal(); showToast('✅ Uživatel uložen'); renderAdmin();
 }
 

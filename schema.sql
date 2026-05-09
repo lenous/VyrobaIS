@@ -13,8 +13,14 @@ create table if not exists public.app_state (
 
 -- ── RLS POLITIKY ──────────────────────────────────────
 -- Přístup omezen pouze na řádek 'main' (žádné jiné řádky nelze vytvořit/číst).
--- POZNÁMKA: Hesla uživatelů se do cloudu NEUKLÁDAJÍ – zůstávají pouze lokálně
--- v prohlížeči v klíči 'vyrobais-creds-v2'. Cloud obsahuje pouze provozní data.
+-- POZNÁMKA: Statická aplikace do cloudu NEPOSÍLÁ hesla, profily uživatelů
+-- ani logy přihlášení. Lokální demo hesla zůstávají jen v prohlížeči
+-- v klíči 'vyrobais-creds-v2'. Cloud obsahuje pouze provozní výrobní data.
+--
+-- Tato jednoduchá varianta stále používá veřejný publishable/anon klíč,
+-- takže je vhodná pro interní demo nebo uzavřenou síť. Pro ostrý provoz
+-- použijte Supabase Auth nebo vlastní Python/FastAPI backend a role
+-- kontrolujte serverově.
 -- ──────────────────────────────────────────────────────
 alter table public.app_state enable row level security;
 
@@ -44,7 +50,6 @@ alter publication supabase_realtime add table public.app_state;
 -- ── DOPORUČENÍ PRO PRODUKCI ───────────────────────────
 -- Pro vyšší bezpečnost lze přidat Supabase Auth:
 --   1. V Supabase zapnout Authentication → Email provider
---   2. Vytvořit sdílený servisní účet (app-service@firma.cz)
---   3. Změnit RLS na: using (auth.uid() IS NOT NULL)
---   4. Aplikace se přihlásí k Supabase tímto servisním účtem
---      a teprve pak může číst/zapisovat data.
+--   2. Přidat tabulku profiles(user_id uuid references auth.users, role text)
+--   3. Změnit RLS na pravidla podle auth.uid() a role z profiles
+--   4. Audit logy a citlivé změny zapisovat serverově, ne z klienta.
